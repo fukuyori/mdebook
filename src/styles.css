@@ -1,0 +1,257 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Preview styles */
+.preview-container {
+  padding: 1.5rem;
+  overflow-y: auto;
+  height: 100%;
+  line-height: 1.7;
+}
+
+.preview-container.prose-dark {
+  color: #e0e0e0;
+  background: #1a1a1a;
+}
+
+.preview-container.prose-light {
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
+.preview-container h1 {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid currentColor;
+  opacity: 0.9;
+}
+
+.preview-container h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 1.5rem 0 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid currentColor;
+  opacity: 0.7;
+}
+
+.preview-container h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.preview-container p {
+  margin: 0.75rem 0;
+}
+
+.preview-container ul,
+.preview-container ol {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.preview-container li {
+  margin: 0.25rem 0;
+}
+
+.preview-container pre {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.prose-dark pre {
+  background: #2d2d2d;
+}
+
+.prose-light pre {
+  background: #f4f4f4;
+}
+
+.preview-container code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  padding: 0.15em 0.3em;
+  border-radius: 0.25rem;
+}
+
+.prose-dark code {
+  background: #2d2d2d;
+}
+
+.prose-light code {
+  background: #f0f0f0;
+}
+
+.preview-container pre code {
+  background: none;
+  padding: 0;
+}
+
+.preview-container blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid;
+  opacity: 0.8;
+}
+
+.prose-dark blockquote {
+  border-color: #4a4a4a;
+  background: #2a2a2a;
+}
+
+.prose-light blockquote {
+  border-color: #ddd;
+  background: #f9f9f9;
+}
+
+.preview-container table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.preview-container th,
+.preview-container td {
+  border: 1px solid;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.prose-dark th,
+.prose-dark td {
+  border-color: #4a4a4a;
+}
+
+.prose-light th,
+.prose-light td {
+  border-color: #ddd;
+}
+
+.preview-container th {
+  font-weight: bold;
+}
+
+.prose-dark th {
+  background: #2d2d2d;
+}
+
+.prose-light th {
+  background: #f4f4f4;
+}
+
+.preview-container hr {
+  margin: 2rem 0;
+  border: none;
+  border-top: 1px solid currentColor;
+  opacity: 0.3;
+}
+
+.preview-container a {
+  text-decoration: none;
+}
+
+.prose-dark a {
+  color: #6db3f2;
+}
+
+.prose-light a {
+  color: #0066cc;
+}
+
+.preview-container a:hover {
+  text-decoration: underline;
+}
+
+.preview-container img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.preview-container .mermaid-diagram {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.preview-container .mermaid-diagram svg {
+  max-width: 100%;
+}
+
+/* VIM status bar */
+.vim-status-bar {
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+/* Dark mode scrollbar */
+.bg-gray-900 ::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+}
+
+.bg-gray-900 ::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* File tab animation */
+.file-tab {
+  transition: background-color 0.15s ease;
+}
+
+/* Button transitions */
+button {
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+/* Export menu animation */
+.export-menu {
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
