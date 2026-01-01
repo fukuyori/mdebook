@@ -1106,13 +1106,16 @@ export const App: React.FC = () => {
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, file.id)}
                 onDragEnd={handleDragEnd}
-                onClick={() => {
+                onClick={(e) => {
                   if (editingFileId !== file.id) {
                     setActiveFileId(file.id);
-                    focusEditor();
+                    // Don't focus editor on single click - wait to see if it's a double click
                   }
                 }}
-                onDoubleClick={() => startEditingFileName(file)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  startEditingFileName(file);
+                }}
                 className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 cursor-pointer transition-all ${
                   file.id === activeFileId
                     ? isDark ? 'bg-gray-700 border-l-2 border-blue-500' : 'bg-gray-200 border-l-2 border-blue-500'
