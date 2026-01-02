@@ -22,7 +22,6 @@ const classicCss = `
 
 body {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1em;
   color: #333;
   background: #fff;
   margin: 0;
@@ -202,7 +201,6 @@ const modernCss = `
 
 body {
   font-family: "Helvetica Neue", Arial, sans-serif;
-  font-size: 1em;
   color: #2c3e50;
   background: #fff;
   margin: 0;
@@ -374,7 +372,6 @@ const technicalCss = `
 
 body {
   font-family: "Noto Serif", Georgia, serif;
-  font-size: 1em;
   color: #000;
   background: #fff;
   margin: 0;
@@ -720,7 +717,6 @@ const novelCss = `
 
 body {
   font-family: "Yu Mincho", Georgia, serif;
-  font-size: 1em;
   color: #333;
   background: #fff;
   margin: 0;
@@ -883,7 +879,6 @@ const academicCss = `
 
 body {
   font-family: "Times New Roman", Times, serif;
-  font-size: 1em;
   color: #000;
   background: #fff;
   margin: 0;

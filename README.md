@@ -2,7 +2,7 @@
 
 A browser-based Markdown eBook editor with VIM keybindings, multi-language support, and export to EPUB/PDF/HTML/Markdown.
 
-**Version: 0.4.1**
+**Version: 0.4.2**
 
 **[🇯🇵 日本語版はこちら](README.ja.md)**
 
@@ -208,6 +208,11 @@ book-markdown.zip
 | Safari | ✅ Supported (fallback file handling) |
 
 ## 📝 Changelog
+
+### v0.4.2
+- Chapter title page inserted after current active tab
+- Chapter title pages combined in TOC (e.g., "Chapter 1 Introduction")
+- Removed body font-size from all themes for better e-reader compatibility
 
 ### v0.4.1
 - Book structure templates: Colophon, Preface, Chapter Title Page, Bibliography

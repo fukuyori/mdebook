@@ -364,9 +364,17 @@ export const App: React.FC = () => {
       name: fileName,
       content: getChapterTitleTemplate(uiLang, chapterNumber),
     };
-    setFiles(prev => [...prev, newFile]);
+    
+    // Insert after current active file
+    setFiles(prev => {
+      const activeIndex = prev.findIndex(f => f.id === activeFileId);
+      const insertIndex = activeIndex >= 0 ? activeIndex + 1 : prev.length;
+      const newFiles = [...prev];
+      newFiles.splice(insertIndex, 0, newFile);
+      return newFiles;
+    });
     setActiveFileId(newId);
-  }, [files, uiLang]);
+  }, [files, uiLang, activeFileId]);
   
   // Add bibliography template
   const addBibliographyTemplate = useCallback(() => {
