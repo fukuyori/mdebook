@@ -2,7 +2,7 @@
 
 A browser-based Markdown eBook editor with VIM keybindings, multi-language support, and export to EPUB/PDF/HTML/Markdown.
 
-**Version: 0.4.2**
+**Version: 0.4.3**
 
 **[🇯🇵 日本語版はこちら](README.ja.md)**
 
@@ -23,9 +23,9 @@ A browser-based Markdown eBook editor with VIM keybindings, multi-language suppo
 - **5 Preset Themes**: Classic, Modern, Technical, Novel, Academic
 - **Custom CSS Import**: Use your own CSS for EPUB styling
 - **CSS Export**: Export any theme CSS for customization
-- **Kindle-compliant**: All themes follow Amazon Kindle Publishing Guidelines
+- **Kindle-optimized**: All themes follow Amazon Kindle Publishing Guidelines 2025
 
-### Book Structure Templates (v0.4.1)
+### Book Structure Templates
 - **Colophon (奥付)**: Auto-placed at end, publication info template
 - **Preface (はじめに)**: Auto-placed at beginning
 - **Chapter Title Page (章扉)**: Decorative chapter openers with epigraphs
@@ -103,18 +103,38 @@ node build-html.cjs
 | **Novel** | Reading-optimized with scene breaks | Fiction |
 | **Academic** | Scholarly style with justified text | Academic papers |
 
+### Kindle-Optimized CSS (v0.4.3)
+
+All themes are optimized for Kindle devices:
+
+```css
+/* Base settings */
+html { font-size: 100%; }
+body {
+  margin: 0;
+  padding: 0;
+  line-height: 1.75;        /* Japanese-friendly line spacing */
+  text-align: justify;       /* Standard e-book alignment */
+  word-wrap: break-word;     /* Prevent long word overflow */
+}
+
+/* Headings */
+h1 { font-size: 1.6em; page-break-before: always; }
+h2 { font-size: 1.3em; }
+h3 { font-size: 1.1em; }
+
+/* Code - separated to prevent font-size accumulation */
+code { font-size: 0.9em; }
+pre { font-size: 0.9em; }
+pre code { font-size: inherit; }  /* Reset nested code */
+```
+
 ### Custom CSS
 
 1. Click **↓ CSS** to export a theme as starting point
 2. Edit the CSS file to customize styles
 3. Click **↑ CSS** to import your custom CSS
 4. Theme automatically switches to "Custom"
-
-All themes are Kindle-compliant:
-- Body text: 1em (required default)
-- No forced line-height (respects user settings)
-- Headings: 1.0em - 1.3em (conservative sizing)
-- Margins: percentage-based
 
 ## 📑 Book Structure
 
@@ -126,7 +146,7 @@ Click "Add Template" to insert pre-formatted templates:
 |----------|-----------|----------|
 | 📋 Colophon | `colophon.md` / `奥付.md` | End (auto) |
 | 📖 Preface | `preface.md` / `はじめに.md` | Beginning (auto) |
-| 📑 Chapter Title | `章扉N.md` | Manual |
+| 📑 Chapter Title | `章扉N.md` | After current tab |
 | 📚 Bibliography | `bibliography.md` / `参考文献.md` | Before colophon (auto) |
 
 ### EPUB File Order
@@ -208,6 +228,15 @@ book-markdown.zip
 | Safari | ✅ Supported (fallback file handling) |
 
 ## 📝 Changelog
+
+### v0.4.3
+- **Kindle-optimized CSS**: All 5 themes rewritten following Kindle Publishing Guidelines 2025
+  - `html { font-size: 100%; }` for respecting user font settings
+  - `body { line-height: 1.75; text-align: justify; word-wrap: break-word; }`
+  - Headings: h1=1.6em, h2=1.3em, h3=1.1em with `page-break-before: always` on h1
+  - Code blocks: Separated `code` and `pre` definitions to prevent font-size accumulation in `<pre><code>` nesting
+- **Removed specific font-family declarations**: Uses generic families (`sans-serif`, `monospace`) for e-reader compatibility
+- **Structured CSS comments**: Organized sections (Base, Headings, Paragraphs, Lists, Code, Tables, Images)
 
 ### v0.4.2
 - Chapter title page inserted after current active tab

@@ -17,64 +17,70 @@ export interface EpubTheme {
 }
 
 const classicCss = `
-/* Classic Theme - Kindle Compliant */
+/* Classic Theme - Kindle Optimized */
 @charset "UTF-8";
 
+/* ==========================================================================
+   1. 基本設定 (Reset & Base)
+   ========================================================================== */
+html {
+  font-size: 100%;
+}
+
 body {
-  font-family: Georgia, "Times New Roman", serif;
-  color: #333;
-  background: #fff;
   margin: 0;
   padding: 0;
+  line-height: 1.7;
+  text-align: justify;
+  word-wrap: break-word;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: bold;
-  color: #222;
-  line-height: 1;
-}
-
+/* ==========================================================================
+   2. 見出し (Headings)
+   ========================================================================== */
 h1 {
-  font-size: 1.2em;
+  font-size: 1.6em;
+  font-weight: bold;
   text-align: center;
-  margin-top: 1.5em;
-  margin-bottom: 1em;
+  margin: 3em 0 2em 0;
   border-bottom: 1px solid #333;
   padding-bottom: 0.3em;
+  page-break-before: always;
 }
 
 h2 {
-  font-size: 1.15em;
-  text-align: left;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
+  font-size: 1.3em;
+  font-weight: bold;
+  margin: 2em 0 1em 0;
   border-bottom: 1px solid #999;
   padding-bottom: 0.2em;
 }
 
 h3 {
-  font-size: 1.05em;
-  text-align: left;
-  margin-top: 1.2em;
-  margin-bottom: 0.4em;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin: 1.5em 0 0.8em 0;
 }
 
 h4 {
   font-size: 1em;
-  text-align: left;
   font-weight: bold;
-  margin-top: 1em;
-  margin-bottom: 0.3em;
+  margin: 1.2em 0 0.3em 0;
 }
 
+/* ==========================================================================
+   3. 本文・段落 (Paragraphs)
+   ========================================================================== */
 p {
-  margin-bottom: 0;
-  margin-top: 0;
+  margin: 0;
+  padding: 0;
   text-indent: 1em;
 }
 
-p:first-of-type,
+p.no-indent {
+  text-indent: 0;
+}
+
 h1 + p, h2 + p, h3 + p, h4 + p {
   text-indent: 0;
 }
@@ -82,37 +88,65 @@ h1 + p, h2 + p, h3 + p, h4 + p {
 a { color: #06c; text-decoration: none; }
 
 blockquote {
-  margin: 1em 5%;
-  padding: 0.5em 2.5%;
+  margin: 1em 2em;
+  padding: 0.5em 1em;
   border-left: 3px solid #ccc;
   color: #555;
   font-style: italic;
 }
 
-pre, code {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.85em;
+/* ==========================================================================
+   4. リスト (Lists)
+   ========================================================================== */
+ul, ol {
+  margin: 1em 0 1em 2em;
 }
 
+li {
+  margin: 0.5em 0;
+}
+
+/* ==========================================================================
+   5. コード (Code Blocks)
+   ========================================================================== */
+/* インラインコード */
+code {
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f0f0f0;
+  padding: 0.1em 0.3em;
+}
+
+/* コードブロック */
 pre {
-  background: #f8f8f8;
-  padding: 1em;
-  border: 1px solid #ddd;
-  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f0f0f0;
+  display: block;
   white-space: pre-wrap;
-  word-wrap: break-word;
+  padding: 1em;
+  margin: 1em 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
-code { background: #f0f0f0; padding: 0.1em 0.3em; }
-pre code { background: none; padding: 0; }
+/* コードブロック内のcode要素（リセット） */
+pre code {
+  font-size: inherit;
+  background: none;
+  padding: 0;
+}
 
-ul, ol { margin: 0.5em 0 0.5em 5%; padding: 0; }
-li { margin-bottom: 0; margin-top: 0; }
-
+/* ==========================================================================
+   6. テーブル (Tables)
+   ========================================================================== */
 table { border-collapse: collapse; width: 100%; margin: 1em 0; }
 th, td { border: 1px solid #999; padding: 0.5em; text-align: left; }
 th { background: #f0f0f0; font-weight: bold; }
 
+/* ==========================================================================
+   7. 画像 (Images)
+   ========================================================================== */
 img { max-width: 100%; height: auto; display: block; margin: 1em auto; }
 hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
 
@@ -196,84 +230,136 @@ sup { font-size: 0.75em; vertical-align: super; }
 `;
 
 const modernCss = `
-/* Modern Theme - Kindle Compliant */
+/* Modern Theme - Kindle Optimized */
 @charset "UTF-8";
 
+/* ==========================================================================
+   1. 基本設定 (Reset & Base)
+   ========================================================================== */
+html {
+  font-size: 100%;
+}
+
 body {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  color: #2c3e50;
-  background: #fff;
   margin: 0;
   padding: 0;
+  line-height: 1.7;
+  text-align: justify;
+  word-wrap: break-word;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-weight: bold;
-  color: #1a252f;
-  line-height: 1;
-}
-
+/* ==========================================================================
+   2. 見出し (Headings)
+   ========================================================================== */
 h1 {
-  font-size: 1.2em;
+  font-family: sans-serif;
+  font-size: 1.6em;
+  font-weight: bold;
   text-align: center;
-  margin-top: 1.5em;
-  margin-bottom: 1em;
+  margin: 3em 0 2em 0;
   padding-bottom: 0.5em;
   border-bottom: 2px solid #3498db;
+  page-break-before: always;
 }
 
 h2 {
-  font-size: 1.15em;
-  text-align: left;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
+  font-family: sans-serif;
+  font-size: 1.3em;
+  font-weight: bold;
   color: #2980b9;
+  margin: 2em 0 1em 0;
 }
 
 h3 {
-  font-size: 1.05em;
-  text-align: left;
-  margin-top: 1.2em;
-  margin-bottom: 0.4em;
+  font-family: sans-serif;
+  font-size: 1.1em;
+  font-weight: bold;
   color: #34495e;
+  margin: 1.5em 0 0.8em 0;
 }
 
 h4 {
+  font-family: sans-serif;
   font-size: 1em;
-  text-align: left;
   font-weight: bold;
-  margin-top: 1em;
-  margin-bottom: 0.3em;
+  margin: 1.2em 0 0.3em 0;
 }
 
-p { margin-bottom: 0; margin-top: 0.8em; }
+/* ==========================================================================
+   3. 本文・段落 (Paragraphs)
+   ========================================================================== */
+p {
+  margin: 0;
+  padding: 0;
+  text-indent: 1em;
+}
+
+p.no-indent {
+  text-indent: 0;
+}
+
+h1 + p, h2 + p, h3 + p, h4 + p {
+  text-indent: 0;
+}
+
 a { color: #3498db; text-decoration: none; }
 
 blockquote {
-  margin: 1em 5%;
-  padding: 0.8em 2.5%;
+  margin: 1em 2em;
+  padding: 0.8em 1em;
   background: #f7f9fa;
   border-left: 4px solid #3498db;
   color: #555;
 }
-blockquote p { margin: 0; }
+blockquote p { margin: 0; text-indent: 0; }
 
-pre, code { font-family: "SF Mono", Consolas, monospace; font-size: 0.85em; }
+/* ==========================================================================
+   4. リスト (Lists)
+   ========================================================================== */
+ul, ol {
+  margin: 1em 0 1em 2em;
+}
+
+li {
+  margin: 0.5em 0;
+}
+
+/* ==========================================================================
+   5. コード (Code Blocks)
+   ========================================================================== */
+/* インラインコード */
+code {
+  font-family: monospace;
+  font-size: 0.9em;
+  background: #e8f4f8;
+  color: #c0392b;
+  padding: 0.2em 0.4em;
+}
+
+/* コードブロック */
 pre {
+  font-family: monospace;
+  font-size: 0.9em;
+  display: block;
   background: #2c3e50;
   color: #ecf0f1;
-  padding: 1em;
-  overflow-x: auto;
   white-space: pre-wrap;
-  word-wrap: break-word;
+  padding: 1em;
+  margin: 1em 0;
+  border-radius: 4px;
 }
-code { background: #e8f4f8; color: #c0392b; padding: 0.2em 0.4em; }
-pre code { background: none; color: inherit; padding: 0; }
 
-ul, ol { margin: 0.8em 0 0.8em 5%; padding: 0; }
-li { margin-bottom: 0.3em; margin-top: 0; }
+/* コードブロック内のcode要素（リセット） */
+pre code {
+  font-size: inherit;
+  background: none;
+  color: inherit;
+  padding: 0;
+}
 
+/* ==========================================================================
+   6. テーブル (Tables)
+   ========================================================================== */
 table { border-collapse: collapse; width: 100%; margin: 1em 0; }
 th, td { border: 1px solid #bdc3c7; padding: 0.5em; text-align: left; }
 th { background: #3498db; color: #fff; font-weight: bold; }
@@ -366,66 +452,62 @@ hr { border: none; height: 2px; background: #3498db; margin: 2em 0; }
 `;
 
 const technicalCss = `
-/* Technical Theme - Kindle Compliant */
+/* Technical Theme - Kindle Optimized */
 /* Reference: O'Reilly Media style */
 @charset "UTF-8";
 
-body {
-  font-family: "Noto Serif", Georgia, serif;
-  color: #000;
-  background: #fff;
-  margin: 0;
-  padding: 0;
-  text-align: left;
+/* ==========================================================================
+   1. 基本設定 (Reset & Base)
+   ========================================================================== */
+html {
+  font-size: 100%;
 }
 
-/* Chapter heading - large with bottom border */
+body {
+  margin: 0;
+  padding: 0;
+  line-height: 1.7;
+  text-align: justify;
+  word-wrap: break-word;
+}
+
+/* ==========================================================================
+   2. 見出し (Headings)
+   ========================================================================== */
 h1 {
+  font-family: sans-serif;
+  font-size: 1.6em;
+  font-weight: bold;
+  text-align: center;
+  margin: 3em 0 2em 0;
+  page-break-before: always;
+}
+
+h2 {
   font-family: sans-serif;
   font-size: 1.3em;
   font-weight: bold;
-  line-height: 1;
-  margin-top: 1.2em;
-  margin-bottom: 0.5em;
-  padding-bottom: 0.3em;
-  border-bottom: 1px solid #333;
-  text-align: left;
+  color: #333;
+  margin: 2em 0 1em 0;
+  padding-left: 0.5em;
+  border-left: 0.3em solid #8e0012;
+  border-bottom: 1px solid #ccc;
 }
 
-/* Section heading - dark red accent */
-h2 {
-  font-family: sans-serif;
-  font-size: 1.2em;
-  font-weight: bold;
-  line-height: 1;
-  color: #8e0012;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  text-align: left;
-}
-
-/* Subsection heading */
 h3 {
   font-family: sans-serif;
   font-size: 1.1em;
   font-weight: bold;
-  line-height: 1;
-  margin-top: 1.3em;
-  margin-bottom: 0.4em;
-  text-align: left;
+  margin: 1.5em 0 0.8em 0;
 }
 
-/* Item heading - gray background */
 h4 {
   font-family: sans-serif;
   font-size: 1em;
   font-weight: bold;
-  line-height: 1;
   background-color: #f0f0f0;
-  margin-top: 1.2em;
-  margin-bottom: 0.3em;
-  padding: 0.3em 1%;
-  text-align: left;
+  margin: 1.2em 0 0.3em 0;
+  padding: 0.3em 0.5em;
 }
 
 h5, h6 {
@@ -433,55 +515,75 @@ h5, h6 {
   font-size: 0.95em;
   font-weight: bold;
   color: #555;
-  margin-top: 1em;
-  margin-bottom: 0.3em;
-  text-align: left;
+  margin: 1em 0 0.3em 0;
 }
 
-/* Body text */
+/* ==========================================================================
+   3. 本文・段落 (Paragraphs)
+   ========================================================================== */
 p {
-  margin-bottom: 0;
-  margin-top: 0.65em;
-  margin-left: 5%;
+  margin: 0;
+  padding: 0;
+  text-indent: 1em;
+}
+
+p.no-indent {
+  text-indent: 0;
 }
 
 h1 + p, h2 + p, h3 + p, h4 + p {
-  margin-top: 0.5em;
+  text-indent: 0;
 }
 
 a { color: #8e0012; text-decoration: none; }
 
 blockquote {
-  margin: 1em 5%;
-  padding: 0.5em 2.5%;
+  margin: 1em 2em;
+  padding: 0.5em 1em;
   border: 1px solid #bebebe;
   color: #333;
   font-style: italic;
 }
 
-/* Code blocks - light gray background */
-pre, code {
-  font-family: "Ubuntu Mono", "Consolas", "Liberation Mono", monospace;
-  font-size: 0.85em;
+/* ==========================================================================
+   4. リスト (Lists)
+   ========================================================================== */
+ul, ol {
+  margin: 1em 0 1em 2em;
 }
 
-pre {
-  background-color: #f7f7f7;
-  border: 1px solid #dcdcdc;
-  padding: 0.7em 2%;
-  margin: 1em 3.5%;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+li {
+  margin: 0.5em 0;
 }
 
+/* ==========================================================================
+   5. コード (Code Blocks)
+   ========================================================================== */
+/* インラインコード */
 code {
-  background: #f7f7f7;
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f0f0f0;
   padding: 0.1em 0.3em;
   color: #8e0012;
 }
 
+/* コードブロック */
+pre {
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f0f0f0;
+  display: block;
+  white-space: pre-wrap;
+  padding: 1em;
+  margin: 1em 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* コードブロック内のcode要素（リセット） */
 pre code {
+  font-size: inherit;
   background: none;
   padding: 0;
   color: inherit;
@@ -494,22 +596,9 @@ pre code {
 .number { color: #aa0000; }
 .function { color: #330099; font-weight: bold; }
 
-/* Lists */
-ul, ol {
-  margin: 0.7em 0 0.7em 9%;
-  padding: 0;
-}
-
-li {
-  margin-bottom: 0.3em;
-  margin-top: 0;
-}
-
-li > ul, li > ol {
-  margin: 0.3em 0 0.3em 5%;
-}
-
-/* Tables - academic style with top/bottom borders */
+/* ==========================================================================
+   6. テーブル (Tables)
+   ========================================================================== */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -636,7 +725,7 @@ kbd {
 
 /* Colophon (奥付) */
 .colophon { page-break-before: always; margin-top: 3em; }
-.colophon h1 { text-align: center; font-family: "Noto Sans", sans-serif; }
+.colophon h1 { text-align: center; font-family: sans-serif; }
 .colophon hr { border: none; border-top: 1px solid #8e0012; margin: 1.5em 0; }
 .colophon table { width: auto; margin: 1em auto; border: none; }
 .colophon th, .colophon td { border: none; padding: 0.3em 1em; }
@@ -656,14 +745,14 @@ kbd {
   background: #fafafa;
 }
 .chapter-title-page h1 {
-  font-family: "Noto Sans", sans-serif;
+  font-family: sans-serif;
   font-size: 1em;
   font-weight: normal;
   color: #8e0012;
   margin-bottom: 0.5em;
 }
 .chapter-title-page h2 {
-  font-family: "Noto Sans", sans-serif;
+  font-family: sans-serif;
   font-size: 1.6em;
   font-weight: bold;
   color: #000;
@@ -688,7 +777,7 @@ kbd {
   page-break-inside: avoid;
 }
 .admonition-title {
-  font-family: "Noto Sans", sans-serif;
+  font-family: sans-serif;
   font-weight: bold;
   font-size: 0.9em;
   margin: 0 0 0.5em 0;
@@ -712,78 +801,123 @@ kbd {
 `;
 
 const novelCss = `
-/* Novel Theme - Kindle Compliant */
+/* Novel Theme - Kindle Optimized */
 @charset "UTF-8";
 
+/* ==========================================================================
+   1. 基本設定 (Reset & Base)
+   ========================================================================== */
+html {
+  font-size: 100%;
+}
+
 body {
-  font-family: "Yu Mincho", Georgia, serif;
-  color: #333;
-  background: #fff;
   margin: 0;
   padding: 0;
-  text-align: left;
-  text-indent: 1em;
+  line-height: 1.7;
+  text-align: justify;
+  word-wrap: break-word;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: "Yu Mincho", Georgia, serif;
-  font-weight: bold;
-  color: #222;
-  line-height: 1;
-}
-
+/* ==========================================================================
+   2. 見出し (Headings)
+   ========================================================================== */
 h1 {
-  font-size: 1.2em;
+  font-size: 1.6em;
+  font-weight: bold;
   text-align: center;
-  margin-top: 2em;
-  margin-bottom: 1.5em;
+  margin: 3em 0 2em 0;
+  page-break-before: always;
 }
 
 h2 {
-  font-size: 1.1em;
-  text-align: left;
-  margin-top: 1.5em;
-  margin-bottom: 0.8em;
+  font-size: 1.3em;
+  font-weight: bold;
+  margin: 2em 0 1em 0;
   padding-left: 0.5em;
   border-left: 4px solid #8b4513;
 }
 
 h3 {
-  font-size: 1.05em;
-  text-align: left;
-  margin-top: 1.2em;
-  margin-bottom: 0.5em;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin: 1.5em 0 0.8em 0;
 }
 
 h4 {
   font-size: 1em;
-  text-align: left;
   font-weight: bold;
-  margin-top: 1em;
-  margin-bottom: 0.3em;
+  margin: 1.2em 0 0.3em 0;
 }
 
-p { margin-bottom: 0; margin-top: 0; text-indent: 1em; }
-h1 + p, h2 + p, h3 + p, h4 + p { text-indent: 0; }
-p.no-indent { text-indent: 0; }
+/* ==========================================================================
+   3. 本文・段落 (Paragraphs)
+   ========================================================================== */
+p {
+  margin: 0;
+  padding: 0;
+  text-indent: 1em;
+}
+
+p.no-indent {
+  text-indent: 0;
+}
+
+h1 + p, h2 + p, h3 + p, h4 + p {
+  text-indent: 0;
+}
+
 p.scene-break { text-indent: 0; text-align: center; margin: 1.5em 0; }
 
 a { color: #8b4513; text-decoration: none; }
 
-blockquote { margin: 1em 5%; padding: 0; font-style: italic; color: #555; }
+blockquote { margin: 1em 2em; padding: 0; font-style: italic; color: #555; }
 
-pre, code { font-family: "Source Code Pro", monospace; font-size: 0.85em; }
-pre {
-  background: #f5f5f0;
-  padding: 1em;
-  border: 1px solid #ddd;
-  overflow-x: auto;
-  white-space: pre-wrap;
+/* ==========================================================================
+   4. リスト (Lists)
+   ========================================================================== */
+ul, ol {
+  margin: 1em 0 1em 2em;
 }
 
-ul, ol { margin: 0.8em 0 0.8em 5%; }
-li { margin-bottom: 0.3em; margin-top: 0; }
+li {
+  margin: 0.5em 0;
+}
 
+/* ==========================================================================
+   5. コード (Code Blocks)
+   ========================================================================== */
+/* インラインコード */
+code {
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f5f5f0;
+  padding: 0.1em 0.3em;
+}
+
+/* コードブロック */
+pre {
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f5f5f0;
+  display: block;
+  white-space: pre-wrap;
+  padding: 1em;
+  margin: 1em 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* コードブロック内のcode要素（リセット） */
+pre code {
+  font-size: inherit;
+  background: none;
+  padding: 0;
+}
+
+/* ==========================================================================
+   6. 画像・その他 (Images & Misc)
+   ========================================================================== */
 img { max-width: 100%; height: auto; display: block; margin: 1.5em auto; }
 
 hr { border: none; text-align: center; margin: 1.5em 0; }
@@ -874,63 +1008,145 @@ hr::before { content: "* * *"; color: #999; letter-spacing: 0.5em; }
 `;
 
 const academicCss = `
-/* Academic Theme - Kindle Compliant */
+/* Academic Theme - Kindle Optimized */
 @charset "UTF-8";
 
+/* ==========================================================================
+   1. 基本設定 (Reset & Base)
+   ========================================================================== */
+html {
+  font-size: 100%;
+}
+
 body {
-  font-family: "Times New Roman", Times, serif;
-  color: #000;
-  background: #fff;
   margin: 0;
   padding: 0;
+  line-height: 1.7;
+  text-align: justify;
+  word-wrap: break-word;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: "Times New Roman", Times, serif;
+/* ==========================================================================
+   2. 見出し (Headings)
+   ========================================================================== */
+h1 {
+  font-size: 1.6em;
   font-weight: bold;
-  color: #000;
-  line-height: 1;
+  text-align: center;
+  margin: 3em 0 2em 0;
+  page-break-before: always;
 }
 
-h1 { font-size: 1.2em; text-align: center; margin-top: 1.5em; margin-bottom: 1em; }
-h2 { font-size: 1.1em; text-align: left; margin-top: 1.5em; margin-bottom: 0.5em; }
-h3 { font-size: 1.05em; text-align: left; font-style: italic; margin-top: 1.2em; margin-bottom: 0.4em; }
-h4 { font-size: 1em; text-align: left; font-style: italic; margin-top: 1em; margin-bottom: 0.3em; }
+h2 {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin: 2em 0 1em 0;
+}
 
-p { margin-bottom: 0; margin-top: 0.8em; text-align: justify; }
+h3 {
+  font-size: 1.1em;
+  font-weight: bold;
+  font-style: italic;
+  margin: 1.5em 0 0.8em 0;
+}
+
+h4 {
+  font-size: 1em;
+  font-weight: bold;
+  font-style: italic;
+  margin: 1.2em 0 0.3em 0;
+}
+
+/* ==========================================================================
+   3. 本文・段落 (Paragraphs)
+   ========================================================================== */
+p {
+  margin: 0;
+  padding: 0;
+  text-indent: 1em;
+}
+
+p.no-indent {
+  text-indent: 0;
+}
+
+h1 + p, h2 + p, h3 + p, h4 + p {
+  text-indent: 0;
+}
+
 a { color: #000; text-decoration: underline; }
 
-.abstract { margin: 1.5em 5%; font-size: 0.95em; }
+.abstract { margin: 1.5em 2em; font-size: 0.95em; }
 .abstract-title { font-weight: bold; text-align: center; margin-bottom: 0.5em; }
 
-blockquote { margin: 1em 5%; padding: 0; font-size: 0.95em; }
-blockquote p { margin: 0 0 0.5em 0; }
+blockquote { margin: 1em 2em; padding: 0; font-size: 0.95em; }
+blockquote p { margin: 0 0 0.5em 0; text-indent: 0; }
 
 .footnotes { margin-top: 1.5em; padding-top: 0.8em; border-top: 1px solid #000; font-size: 0.85em; }
 .footnote { margin-bottom: 0; margin-top: 0.3em; }
 .footnote-ref { font-size: 0.75em; vertical-align: super; }
 
-pre, code { font-family: "Courier New", Courier, monospace; font-size: 0.85em; }
-pre { background: #f5f5f5; padding: 1em; border: 1px solid #ccc; margin: 1em 0; overflow-x: auto; white-space: pre-wrap; }
-code { background: #f5f5f5; padding: 0.1em 0.3em; }
-pre code { background: none; padding: 0; }
+/* ==========================================================================
+   4. リスト (Lists)
+   ========================================================================== */
+ul, ol {
+  margin: 1em 0 1em 2em;
+}
 
-ul, ol { margin: 0.8em 0 0.8em 5%; }
-li { margin-bottom: 0.2em; margin-top: 0; }
+li {
+  margin: 0.5em 0;
+}
 
+/* ==========================================================================
+   5. コード (Code Blocks)
+   ========================================================================== */
+/* インラインコード */
+code {
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f5f5f5;
+  padding: 0.1em 0.3em;
+}
+
+/* コードブロック */
+pre {
+  font-family: monospace;
+  font-size: 0.9em;
+  background-color: #f5f5f5;
+  display: block;
+  white-space: pre-wrap;
+  padding: 1em;
+  margin: 1em 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* コードブロック内のcode要素（リセット） */
+pre code {
+  font-size: inherit;
+  background: none;
+  padding: 0;
+}
+
+/* ==========================================================================
+   6. テーブル (Tables)
+   ========================================================================== */
 table { border-collapse: collapse; width: 100%; margin: 1.5em 0; font-size: 0.95em; }
 caption { font-weight: bold; margin-bottom: 0.5em; text-align: left; }
 th, td { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 0.5em; text-align: left; }
 th { font-weight: bold; border-bottom: 2px solid #000; }
 
+/* ==========================================================================
+   7. 画像・その他 (Images & Misc)
+   ========================================================================== */
 figure { margin: 1.5em 0; text-align: center; }
 figcaption { font-size: 0.9em; margin-top: 0.5em; font-style: italic; }
 
-img { max-width: 100%; height: auto; }
+img { max-width: 100%; height: auto; display: block; margin: 1em auto; }
 hr { border: none; border-top: 1px solid #000; margin: 1.5em 0; }
 
 .bibliography { margin-top: 1.5em; }
-.bib-entry { margin-bottom: 0; margin-top: 0.5em; padding-left: 5%; text-indent: -5%; }
+.bib-entry { margin-bottom: 0; margin-top: 0.5em; padding-left: 2em; text-indent: -2em; }
 .keywords { margin: 1em 0; font-size: 0.95em; }
 .keywords-label { font-weight: bold; }
 

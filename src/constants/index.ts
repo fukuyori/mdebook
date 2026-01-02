@@ -1,7 +1,7 @@
 /**
  * Application version
  */
-export const VERSION = '0.4.2';
+export const VERSION = '0.4.3';
 
 /**
  * Default editor settings

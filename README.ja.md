@@ -2,7 +2,7 @@
 
 VIMキーバインド、多言語対応、EPUB/PDF/HTML/Markdownエクスポート機能を備えたブラウザベースのMarkdown電子書籍エディタ。
 
-**バージョン: 0.4.2**
+**バージョン: 0.4.3**
 
 **[🇬🇧 English version](README.md)**
 
@@ -23,9 +23,9 @@ VIMキーバインド、多言語対応、EPUB/PDF/HTML/Markdownエクスポー�
 - **5つのプリセットテーマ**: クラシック、モダン、テクニカル、小説、アカデミック
 - **カスタムCSSインポート**: 独自のCSSでEPUBスタイリング
 - **CSSエクスポート**: テーマCSSをカスタマイズ用にエクスポート
-- **Kindle準拠**: すべてのテーマがAmazon Kindleパブリッシングガイドラインに準拠
+- **Kindle最適化**: すべてのテーマがKindleパブリッシングガイドライン2025に準拠
 
-### 書籍構成テンプレート (v0.4.1)
+### 書籍構成テンプレート
 - **奥付**: EPUB末尾に自動配置、出版情報テンプレート
 - **はじめに**: EPUB先頭に自動配置
 - **章扉**: エピグラフ付きの装飾的な章開始ページ
@@ -103,18 +103,38 @@ node build-html.cjs
 | **小説** | シーン区切り対応の読書最適化 | フィクション |
 | **アカデミック** | 両端揃えの学術スタイル | 学術論文 |
 
+### Kindle最適化CSS (v0.4.3)
+
+すべてのテーマはKindleデバイス向けに最適化：
+
+```css
+/* 基本設定 */
+html { font-size: 100%; }
+body {
+  margin: 0;
+  padding: 0;
+  line-height: 1.75;        /* 日本語に適した行間 */
+  text-align: justify;       /* 電子書籍標準の両端揃え */
+  word-wrap: break-word;     /* 長い英単語の突き抜け防止 */
+}
+
+/* 見出し */
+h1 { font-size: 1.6em; page-break-before: always; }
+h2 { font-size: 1.3em; }
+h3 { font-size: 1.1em; }
+
+/* コード - font-size累積防止のため分離定義 */
+code { font-size: 0.9em; }
+pre { font-size: 0.9em; }
+pre code { font-size: inherit; }  /* ネストされたcodeをリセット */
+```
+
 ### カスタムCSS
 
 1. **↓ CSS** をクリックしてテーマを開始点としてエクスポート
 2. CSSファイルを編集してスタイルをカスタマイズ
 3. **↑ CSS** をクリックしてカスタムCSSをインポート
 4. テーマが自動的に「カスタム」に切り替わる
-
-すべてのテーマはKindle準拠：
-- 本文テキスト: 1em（必須デフォルト）
-- line-height指定なし（ユーザー設定を尊重）
-- 見出し: 1.0em - 1.3em（控えめなサイズ）
-- マージン: パーセント指定
 
 ## 📑 書籍構成
 
@@ -126,7 +146,7 @@ node build-html.cjs
 |------------|-----------|---------|
 | 📋 奥付 | `奥付.md` / `colophon.md` | 末尾（自動） |
 | 📖 はじめに | `はじめに.md` / `preface.md` | 先頭（自動） |
-| 📑 章扉 | `章扉N.md` | 手動 |
+| 📑 章扉 | `章扉N.md` | 現在のタブの次 |
 | 📚 参考文献 | `参考文献.md` / `bibliography.md` | 奥付の前（自動） |
 
 ### EPUBファイル順序
@@ -208,6 +228,15 @@ book-markdown.zip
 | Safari | ✅ サポート（フォールバックファイル処理） |
 
 ## 📝 変更履歴
+
+### v0.4.3
+- **Kindle最適化CSS**: 全5テーマをKindleパブリッシングガイドライン2025に準拠して書き直し
+  - `html { font-size: 100%; }` でユーザーのフォント設定を尊重
+  - `body { line-height: 1.75; text-align: justify; word-wrap: break-word; }`
+  - 見出し: h1=1.6em, h2=1.3em, h3=1.1em、h1に`page-break-before: always`
+  - コードブロック: `<pre><code>`ネストでのfont-size累積防止のため`code`と`pre`を分離定義
+- **特定フォントファミリーの削除**: 電子書籍リーダー互換性のため総称ファミリー（`sans-serif`, `monospace`）のみ使用
+- **CSSコメント構造化**: セクション別に整理（Base, Headings, Paragraphs, Lists, Code, Tables, Images）
 
 ### v0.4.2
 - 章扉を現在のタブの次に挿入するように変更
