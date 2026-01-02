@@ -34,6 +34,7 @@ export interface BookMetadata {
   title: string;
   author: string;
   language: BookLanguage;
+  coverImageId?: string;
 }
 
 /**

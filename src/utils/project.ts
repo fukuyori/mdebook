@@ -47,11 +47,17 @@ export function getReferencedImages(files: EditorFile[]): Set<string> {
 }
 
 /**
- * Filter images to only include those referenced in markdown files
+ * Filter images to only include those referenced in markdown files or used as cover
  */
-export function filterReferencedImages(files: EditorFile[], images: ProjectImage[]): ProjectImage[] {
+export function filterReferencedImages(
+  files: EditorFile[], 
+  images: ProjectImage[],
+  coverImageId?: string
+): ProjectImage[] {
   const referenced = getReferencedImages(files);
-  return images.filter(img => referenced.has(img.name));
+  return images.filter(img => 
+    referenced.has(img.name) || img.id === coverImageId
+  );
 }
 
 /**
@@ -434,15 +440,43 @@ export async function addImageFromFile(file: File): Promise<ProjectImage> {
  */
 export async function addImageFromUrl(url: string): Promise<ProjectImage | null> {
   try {
-    // Use CORS proxy for external URLs
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    const response = await fetch(proxyUrl);
+    let data: ArrayBuffer | null = null;
     
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
+    // Try direct fetch first
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        data = await response.arrayBuffer();
+      }
+    } catch {
+      // Direct fetch failed, try proxies
     }
     
-    const data = await response.arrayBuffer();
+    // If direct fetch failed, try CORS proxies
+    if (!data) {
+      const corsProxies = [
+        (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+        (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      ];
+      
+      for (const getProxyUrl of corsProxies) {
+        try {
+          const proxyUrl = getProxyUrl(url);
+          const response = await fetch(proxyUrl);
+          if (response.ok) {
+            data = await response.arrayBuffer();
+            break;
+          }
+        } catch {
+          // Try next proxy
+        }
+      }
+    }
+    
+    if (!data) {
+      throw new Error('Failed to fetch image (all proxies failed)');
+    }
+    
     const filename = url.split('/').pop() || 'image.png';
     
     return {

@@ -254,6 +254,7 @@ The status bar shows the current VIM mode:
 **EPUB**
 - Standard eBook format
 - Compatible with Kindle, Apple Books, etc.
+- Supports cover image (set in Settings panel)
 - Click Export → EPUB
 
 **PDF**
@@ -323,6 +324,7 @@ Click the gear icon to access:
 - **Title**: Book title (used in exports)
 - **Author**: Author name
 - **Language**: Book language (for EPUB metadata)
+- **Cover Image**: Select from project images (for EPUB)
 
 ---
 

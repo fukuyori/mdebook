@@ -86,6 +86,7 @@ export const App: React.FC = () => {
   const [editingFileName, setEditingFileName] = useState('');
   const [draggedFileId, setDraggedFileId] = useState<string | null>(null);
   const [dragOverFileId, setDragOverFileId] = useState<string | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after'>('before');
   
   // UI toggles
   const [showPreview, setShowPreview] = useState(true);
@@ -363,6 +364,11 @@ export const App: React.FC = () => {
   const handleDragOver = useCallback((e: React.DragEvent, fileId: string) => {
     e.preventDefault();
     
+    // Determine if drop should be before or after this tab
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? 'before' : 'after';
+    
     // Check if it's an external file drop
     const hasFiles = e.dataTransfer.types.includes('Files');
     
@@ -370,10 +376,12 @@ export const App: React.FC = () => {
       // External file drop
       e.dataTransfer.dropEffect = 'copy';
       setDragOverFileId(fileId);
+      setDragOverPosition(position);
     } else if (draggedFileId && fileId !== draggedFileId) {
       // Internal reorder
       e.dataTransfer.dropEffect = 'move';
       setDragOverFileId(fileId);
+      setDragOverPosition(position);
     }
   }, [draggedFileId]);
   
@@ -387,12 +395,18 @@ export const App: React.FC = () => {
     e.preventDefault();
     e.stopPropagation(); // Prevent global drop handler
     
+    // Determine insert position based on mouse position
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const insertAfter = e.clientY >= midY;
+    
     // Check for external files first
     const droppedFiles = Array.from(e.dataTransfer?.files || []);
     
     if (droppedFiles.length > 0 && !draggedFileId) {
       // External file drop - import at this position
       const targetIndex = files.findIndex(f => f.id === targetFileId);
+      const insertIndex = insertAfter ? targetIndex + 1 : targetIndex;
       
       // Check if any .mdebook file is dropped - if so, open it (replace project)
       const projectFile = droppedFiles.find(f => f.name.endsWith('.mdebook'));
@@ -441,8 +455,8 @@ export const App: React.FC = () => {
           // Insert at the target position
           setFiles(prev => {
             const newFiles = [...prev];
-            const insertIndex = targetIndex >= 0 ? targetIndex : newFiles.length;
-            newFiles.splice(insertIndex, 0, ...importedFiles);
+            const finalIndex = insertIndex >= 0 ? Math.min(insertIndex, newFiles.length) : newFiles.length;
+            newFiles.splice(finalIndex, 0, ...importedFiles);
             return newFiles;
           });
           setActiveFileId(importedFiles[0].id);
@@ -470,7 +484,16 @@ export const App: React.FC = () => {
       
       const newFiles = [...prev];
       const [draggedFile] = newFiles.splice(draggedIndex, 1);
-      newFiles.splice(targetIndex, 0, draggedFile);
+      
+      // Calculate insert position (after removing dragged item)
+      let insertIdx = targetIndex;
+      if (insertAfter) {
+        insertIdx = draggedIndex < targetIndex ? targetIndex : targetIndex + 1;
+      } else {
+        insertIdx = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      }
+      
+      newFiles.splice(insertIdx, 0, draggedFile);
       return newFiles;
     });
     
@@ -535,8 +558,8 @@ export const App: React.FC = () => {
   
   // Save project/file (always shows dialog)
   const handleSave = useCallback(async (suggestedName?: string) => {
-    // Filter out unreferenced images before saving
-    const usedImages = filterReferencedImages(files, images);
+    // Filter out unreferenced images before saving (keep cover image)
+    const usedImages = filterReferencedImages(files, images, metadata.coverImageId);
     
     const isProject = shouldSaveAsProject(files, usedImages);
     const defaultName = isProject 
@@ -569,8 +592,8 @@ export const App: React.FC = () => {
   
   // Save project/file with overwrite (no dialog if handle exists)
   const handleSaveOverwrite = useCallback(async () => {
-    // Filter out unreferenced images before saving
-    const usedImages = filterReferencedImages(files, images);
+    // Filter out unreferenced images before saving (keep cover image)
+    const usedImages = filterReferencedImages(files, images, metadata.coverImageId);
     
     const isProject = shouldSaveAsProject(files, usedImages);
     const defaultName = isProject 
@@ -777,15 +800,45 @@ export const App: React.FC = () => {
         processedUrl = processedUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
       }
       
-      // Use CORS proxy
-      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(processedUrl);
-      const response = await fetch(proxyUrl);
+      // Try direct fetch first, then fallback to CORS proxies
+      let response: Response | null = null;
+      let content = '';
       
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+      // Direct fetch (works for GitHub raw, etc.)
+      try {
+        response = await fetch(processedUrl);
+        if (response.ok) {
+          content = await response.text();
+        }
+      } catch {
+        // Direct fetch failed, try proxies
       }
       
-      const content = await response.text();
+      // If direct fetch failed, try CORS proxies
+      if (!content) {
+        const corsProxies = [
+          (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+          (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        ];
+        
+        for (const getProxyUrl of corsProxies) {
+          try {
+            const proxyUrl = getProxyUrl(processedUrl);
+            response = await fetch(proxyUrl);
+            if (response.ok) {
+              content = await response.text();
+              break;
+            }
+          } catch {
+            // Try next proxy
+          }
+        }
+      }
+      
+      if (!content) {
+        throw new Error('Failed to fetch URL (all proxies failed)');
+      }
+      
       const fileName = processedUrl.split('/').pop() || 'imported.md';
       
       const newId = Date.now().toString();
@@ -894,7 +947,7 @@ export const App: React.FC = () => {
     try {
       switch (format) {
         case 'epub':
-          await generateEpub(files, metadata, setExportStatus);
+          await generateEpub(files, metadata, images, setExportStatus);
           break;
         case 'pdf':
           await generatePdf(files, metadata, isDark, setExportStatus);
@@ -1057,7 +1110,7 @@ export const App: React.FC = () => {
       {/* Settings panel */}
       {showSettings && (
         <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 flex-wrap">
             <label className="flex items-center gap-2">
               <span className="text-sm">{t.title}:</span>
               <input
@@ -1085,6 +1138,19 @@ export const App: React.FC = () => {
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>{LANGUAGE_NAMES[lang]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-sm">{t.coverImage}:</span>
+              <select
+                value={metadata.coverImageId || ''}
+                onChange={(e) => setMetadata(prev => ({ ...prev, coverImageId: e.target.value || undefined }))}
+                className={`px-2 py-1 rounded text-sm ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'} border`}
+              >
+                <option value="">{t.noCover}</option>
+                {images.map(img => (
+                  <option key={img.id} value={img.id}>{img.name}</option>
                 ))}
               </select>
             </label>
@@ -1122,7 +1188,9 @@ export const App: React.FC = () => {
                     : isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                 } ${
                   dragOverFileId === file.id && draggedFileId !== file.id
-                    ? isDark ? 'border-t-2 border-blue-400' : 'border-t-2 border-blue-500'
+                    ? dragOverPosition === 'before'
+                      ? isDark ? 'border-t-2 border-blue-400' : 'border-t-2 border-blue-500'
+                      : isDark ? 'border-b-2 border-blue-400' : 'border-b-2 border-blue-500'
                     : ''
                 } ${
                   draggedFileId === file.id ? 'opacity-50' : ''
@@ -1175,7 +1243,7 @@ export const App: React.FC = () => {
         </div>
         
         {/* Editor */}
-        <div className={`${showPreview ? 'flex-1' : 'flex-1'} h-full border-r ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`flex-1 min-w-0 h-full border-r ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           {activeFile && (
             <CodeMirrorEditor
               value={activeFile.content}
@@ -1197,7 +1265,7 @@ export const App: React.FC = () => {
         
         {/* Preview */}
         {showPreview && (
-          <div className="flex-1 h-full" onClick={focusEditor}>
+          <div className="flex-1 min-w-0 h-full" onClick={focusEditor}>
             <Preview
               content={activeFile?.content || ''}
               isDark={isDark}

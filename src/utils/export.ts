@@ -3,9 +3,14 @@ import { convertToXhtml, processTablesInMarkdown, renderMermaidToSvg, parseMarkd
 import { EPUB_CONTAINER_XML, EPUB_MIMETYPE } from '../constants';
 
 // Declare external libraries (loaded via CDN)
+interface JSZipFolder {
+  file(path: string, content: string | ArrayBuffer): void;
+  folder(path: string): JSZipFolder | null;
+}
+
 declare const JSZip: new () => {
   file(path: string, content: string | Blob | ArrayBuffer, options?: { compression?: string }): void;
-  folder(path: string): { file(path: string, content: string | ArrayBuffer): void } | null;
+  folder(path: string): JSZipFolder | null;
   generateAsync(options: { type: string; mimeType?: string }): Promise<Blob>;
 };
 
@@ -110,6 +115,7 @@ export async function exportMarkdownZip(
 export async function generateEpub(
   files: EditorFile[],
   metadata: BookMetadata,
+  images: ProjectImage[],
   onProgress?: (status: string) => void
 ): Promise<void> {
   onProgress?.('Generating EPUB...');
@@ -129,6 +135,55 @@ export async function generateEpub(
   const tocItems: EpubTocItem[] = [];
   
   const oebps = zip.folder('OEBPS');
+  
+  // Find cover image
+  const coverImage = metadata.coverImageId 
+    ? images.find(img => img.id === metadata.coverImageId)
+    : undefined;
+  
+  // Add cover image and cover page if cover exists
+  if (coverImage && oebps) {
+    const coverExt = getExtensionFromMimeType(coverImage.mimeType);
+    const coverFilename = `cover${coverExt}`;
+    
+    // Add cover image file
+    const imagesFolder = oebps.folder('images');
+    imagesFolder?.file(coverFilename, coverImage.data);
+    
+    // Add cover image to manifest
+    manifestItems.push({
+      id: 'cover-image',
+      href: `images/${coverFilename}`,
+      mediaType: coverImage.mimeType,
+    });
+    
+    // Create cover page XHTML
+    const coverXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Cover</title>
+  <style>
+    body { margin: 0; padding: 0; text-align: center; }
+    img { max-width: 100%; max-height: 100%; }
+  </style>
+</head>
+<body>
+  <img src="images/${coverFilename}" alt="Cover"/>
+</body>
+</html>`;
+    
+    oebps.file('cover.xhtml', coverXhtml);
+    
+    manifestItems.push({
+      id: 'cover',
+      href: 'cover.xhtml',
+      mediaType: 'application/xhtml+xml',
+    });
+    
+    spineItems.push({ idref: 'cover' });
+  }
   
   for (let idx = 0; idx < files.length; idx++) {
     const file = files[idx];
@@ -153,8 +208,8 @@ export async function generateEpub(
   // Generate UUID
   const uuid = 'urn:uuid:' + crypto.randomUUID();
   
-  // Create content.opf
-  const contentOpf = generateContentOpf(metadata, uuid, manifestItems, spineItems);
+  // Create content.opf (with cover image reference if exists)
+  const contentOpf = generateContentOpf(metadata, uuid, manifestItems, spineItems, !!coverImage);
   oebps?.file('content.opf', contentOpf);
   
   // Create toc.ncx
@@ -182,15 +237,21 @@ function generateContentOpf(
   metadata: BookMetadata,
   uuid: string,
   manifestItems: EpubManifestItem[],
-  spineItems: EpubSpineItem[]
+  spineItems: EpubSpineItem[],
+  hasCover: boolean = false
 ): string {
   const manifestXml = manifestItems
-    .map(item => `    <item id="${item.id}" href="${item.href}" media-type="${item.mediaType}"/>`)
+    .map(item => {
+      const props = item.id === 'cover-image' ? ' properties="cover-image"' : '';
+      return `    <item id="${item.id}" href="${item.href}" media-type="${item.mediaType}"${props}/>`;
+    })
     .join('\n');
   
   const spineXml = spineItems
     .map(item => `    <itemref idref="${item.idref}"/>`)
     .join('\n');
+  
+  const coverMeta = hasCover ? '\n    <meta name="cover" content="cover-image"/>' : '';
   
   return `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
@@ -199,7 +260,7 @@ function generateContentOpf(
     <dc:title>${escapeXml(metadata.title)}</dc:title>
     <dc:creator>${escapeXml(metadata.author)}</dc:creator>
     <dc:language>${metadata.language}</dc:language>
-    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')}</meta>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')}</meta>${coverMeta}
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>

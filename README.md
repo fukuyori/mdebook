@@ -108,7 +108,7 @@ mdebook/
 ## 📦 Export Formats
 
 ### EPUB
-Standard eBook format compatible with most e-readers.
+Standard eBook format compatible with most e-readers. Supports cover image.
 
 ### PDF
 Opens browser print dialog for PDF generation.

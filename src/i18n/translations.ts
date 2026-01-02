@@ -30,6 +30,8 @@ export interface TranslationStrings {
   author: string;
   language: string;
   uiLanguage: string;
+  coverImage: string;
+  noCover: string;
   
   // Import Modal
   importFromUrl: string;
@@ -151,6 +153,8 @@ export const en: TranslationStrings = {
   author: 'Author',
   language: 'Language',
   uiLanguage: 'UI Language',
+  coverImage: 'Cover Image',
+  noCover: 'No Cover',
   
   // Import Modal
   importFromUrl: 'Import from URL',
@@ -272,6 +276,8 @@ export const ja: TranslationStrings = {
   author: '著者',
   language: '言語',
   uiLanguage: 'UI言語',
+  coverImage: '表紙画像',
+  noCover: '表紙なし',
   
   // Import Modal
   importFromUrl: 'URLからインポート',
@@ -393,6 +399,8 @@ export const zh: TranslationStrings = {
   author: '作者',
   language: '语言',
   uiLanguage: 'UI语言',
+  coverImage: '封面图片',
+  noCover: '无封面',
   
   // Import Modal
   importFromUrl: '从URL导入',
@@ -514,6 +522,8 @@ export const es: TranslationStrings = {
   author: 'Autor',
   language: 'Idioma',
   uiLanguage: 'Idioma de UI',
+  coverImage: 'Imagen de portada',
+  noCover: 'Sin portada',
   
   // Import Modal
   importFromUrl: 'Importar desde URL',
@@ -635,6 +645,8 @@ export const ko: TranslationStrings = {
   author: '저자',
   language: '언어',
   uiLanguage: 'UI 언어',
+  coverImage: '표지 이미지',
+  noCover: '표지 없음',
   
   // Import Modal
   importFromUrl: 'URL에서 가져오기',
