@@ -1,6 +1,6 @@
 {
   "name": "mdebook",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Markdown eBook Editor with VIM keybindings",
   "type": "module",
   "main": "dist/index.js",

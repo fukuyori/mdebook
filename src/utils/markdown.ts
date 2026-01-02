@@ -37,19 +37,252 @@ export function parseMarkdown(markdown: string): string {
  * Render mermaid diagram to SVG
  */
 export async function renderMermaidToSvg(code: string): Promise<string | null> {
-  if (typeof mermaid === 'undefined') return null;
+  if (typeof mermaid === 'undefined') {
+    console.warn('Mermaid library not loaded');
+    return null;
+  }
   
   try {
     // Clean up the code
-    const cleanCode = code.trim();
+    let cleanCode = code.trim();
     if (!cleanCode) return null;
     
+    // Remove init directives that might cause issues
+    // %%{init: {...}}%% at the start
+    cleanCode = cleanCode.replace(/^\s*%%\{init:[\s\S]*?\}%%\s*/i, '');
+    
+    // Try to render
     const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
     const { svg } = await mermaid.render(id, cleanCode);
     return svg;
   } catch (error) {
     console.error('Mermaid render error:', error);
-    console.error('Code was:', JSON.stringify(code));
+    // Return null to trigger fallback
+    return null;
+  }
+}
+
+/**
+ * Render mermaid diagram to PNG (for EPUB compatibility)
+ * Returns base64-encoded PNG data
+ */
+export async function renderMermaidToPng(code: string, scale: number = 2): Promise<{ base64: string; width: number; height: number } | null> {
+  // First render to SVG
+  const svg = await renderMermaidToSvg(code);
+  if (!svg) return null;
+  
+  try {
+    // Create a temporary container to measure SVG
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '-9999px';
+    container.style.visibility = 'hidden';
+    container.innerHTML = svg;
+    document.body.appendChild(container);
+    
+    const svgElement = container.querySelector('svg');
+    if (!svgElement) {
+      document.body.removeChild(container);
+      return null;
+    }
+    
+    // Get dimensions from multiple sources
+    let width = 0;
+    let height = 0;
+    
+    // Try viewBox first
+    const viewBox = svgElement.getAttribute('viewBox');
+    if (viewBox) {
+      const parts = viewBox.split(/\s+/);
+      if (parts.length >= 4) {
+        width = parseFloat(parts[2]) || 0;
+        height = parseFloat(parts[3]) || 0;
+      }
+    }
+    
+    // Try width/height attributes
+    if (width === 0 || height === 0) {
+      const widthAttr = svgElement.getAttribute('width');
+      const heightAttr = svgElement.getAttribute('height');
+      if (widthAttr) width = parseFloat(widthAttr) || 0;
+      if (heightAttr) height = parseFloat(heightAttr) || 0;
+    }
+    
+    // Try baseVal
+    if (width === 0 || height === 0) {
+      if (svgElement.width?.baseVal?.value) width = svgElement.width.baseVal.value;
+      if (svgElement.height?.baseVal?.value) height = svgElement.height.baseVal.value;
+    }
+    
+    // Try getBoundingClientRect as last resort
+    if (width === 0 || height === 0) {
+      const rect = svgElement.getBoundingClientRect();
+      if (rect.width > 0) width = rect.width;
+      if (rect.height > 0) height = rect.height;
+    }
+    
+    // Default minimum size
+    if (width === 0) width = 800;
+    if (height === 0) height = 600;
+    
+    // Ensure minimum readable size (at least 400px wide for EPUB)
+    const minWidth = 600;
+    if (width < minWidth) {
+      const ratio = minWidth / width;
+      width = minWidth;
+      height = height * ratio;
+    }
+    
+    document.body.removeChild(container);
+    
+    // Prepare SVG for rendering - ensure it has proper attributes
+    let svgForRender = svg;
+    
+    // Remove external font references (can cause loading issues)
+    svgForRender = svgForRender.replace(/@import\s+url\([^)]+\);?/gi, '');
+    svgForRender = svgForRender.replace(/@font-face\s*\{[^}]*\}/gi, '');
+    
+    // Convert foreignObject content to be self-contained
+    // Add inline styles to foreignObject elements
+    svgForRender = svgForRender.replace(
+      /<foreignObject([^>]*)>/gi,
+      '<foreignObject$1 xmlns="http://www.w3.org/2000/svg">'
+    );
+    
+    // Ensure div elements inside foreignObject have proper namespace
+    svgForRender = svgForRender.replace(
+      /<div([^>]*)xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"([^>]*)>/gi,
+      '<div$1$2 xmlns="http://www.w3.org/1999/xhtml">'
+    );
+    
+    // Add xmlns if missing
+    if (!svgForRender.includes('xmlns="http://www.w3.org/2000/svg"')) {
+      svgForRender = svgForRender.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    
+    // Add xlink namespace if needed
+    if (!svgForRender.includes('xmlns:xlink') && svgForRender.includes('xlink:')) {
+      svgForRender = svgForRender.replace('<svg', '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+    }
+    
+    // Add xhtml namespace for foreignObject content
+    if (svgForRender.includes('<foreignObject') && !svgForRender.includes('xmlns:xhtml')) {
+      svgForRender = svgForRender.replace('<svg', '<svg xmlns:xhtml="http://www.w3.org/1999/xhtml"');
+    }
+    
+    // Add explicit width/height to SVG for proper rendering
+    svgForRender = svgForRender.replace(
+      /<svg([^>]*)>/,
+      (match, attrs) => {
+        // Remove existing width/height that might conflict
+        let newAttrs = attrs.replace(/\s*(width|height)="[^"]*"/g, '');
+        return `<svg${newAttrs} width="${width}" height="${height}">`;
+      }
+    );
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(width * scale);
+    canvas.height = Math.ceil(height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    
+    // Fill with white background
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    
+    // Convert SVG to base64 data URL (more reliable than blob URL)
+    const svgBase64 = btoa(unescape(encodeURIComponent(svgForRender)));
+    const svgDataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+    
+    // Load image and draw to canvas
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    const result = await new Promise<{ base64: string; width: number; height: number } | null>((resolve) => {
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to PNG base64
+        const dataUrl = canvas.toDataURL('image/png');
+        // Remove "data:image/png;base64," prefix
+        const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+        resolve({ base64, width: Math.ceil(width), height: Math.ceil(height) });
+      };
+      
+      img.onerror = (e) => {
+        console.error('Failed to load SVG as image:', e);
+        resolve(null);
+      };
+      
+      img.src = svgDataUrl;
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Mermaid PNG render error:', error);
+    return null;
+  }
+}
+
+/**
+ * Create a placeholder image for failed mermaid diagrams
+ */
+function createMermaidErrorPlaceholder(code: string): { base64: string; width: number; height: number } | null {
+  try {
+    const width = 600;
+    const height = 200;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = width * 2;
+    canvas.height = height * 2;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    
+    ctx.scale(2, 2);
+    
+    // Background
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Border
+    ctx.strokeStyle = '#dee2e6';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, width - 2, height - 2);
+    
+    // Icon (simple diagram icon)
+    ctx.fillStyle = '#6c757d';
+    ctx.font = 'bold 24px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📊', width / 2, 50);
+    
+    // Title
+    ctx.font = 'bold 16px Arial, sans-serif';
+    ctx.fillStyle = '#495057';
+    ctx.fillText('Diagram', width / 2, 80);
+    
+    // Extract diagram type from code
+    const firstLine = code.trim().split('\n')[0] || '';
+    const diagramType = firstLine.replace(/[^a-zA-Z\s]/g, '').trim().substring(0, 30);
+    
+    ctx.font = '12px Arial, sans-serif';
+    ctx.fillStyle = '#6c757d';
+    ctx.fillText(`(${diagramType || 'mermaid'})`, width / 2, 100);
+    
+    // Note
+    ctx.font = '11px Arial, sans-serif';
+    ctx.fillStyle = '#adb5bd';
+    ctx.fillText('Diagram preview not available in EPUB', width / 2, 140);
+    ctx.fillText('View original .md file for full diagram', width / 2, 160);
+    
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+    
+    return { base64, width, height };
+  } catch (error) {
+    console.error('Failed to create error placeholder:', error);
     return null;
   }
 }
@@ -171,38 +404,144 @@ export function processTablesInMarkdown(content: string): string {
 }
 
 /**
+ * Process admonition/callout blocks (:::note, :::warning, :::tip, etc.)
+ */
+export function processAdmonitions(content: string): string {
+  // Match :::type followed by content until :::
+  const admonitionRegex = /:::(note|warning|tip|info|caution|important)(?:\s+(.+?))?\n([\s\S]*?):::/gi;
+  
+  return content.replace(admonitionRegex, (_, type, title, body) => {
+    const normalizedType = type.toLowerCase();
+    const displayTitle = title?.trim() || getDefaultAdmonitionTitle(normalizedType);
+    const icon = getAdmonitionIcon(normalizedType);
+    
+    return `<div class="admonition admonition-${normalizedType}">
+<p class="admonition-title">${icon} ${displayTitle}</p>
+<div class="admonition-content">
+
+${body.trim()}
+
+</div>
+</div>`;
+  });
+}
+
+/**
+ * Get default title for admonition type
+ */
+function getDefaultAdmonitionTitle(type: string): string {
+  const titles: Record<string, string> = {
+    note: 'Note',
+    warning: 'Warning',
+    tip: 'Tip',
+    info: 'Info',
+    caution: 'Caution',
+    important: 'Important',
+  };
+  return titles[type] || 'Note';
+}
+
+/**
+ * Get icon for admonition type
+ */
+function getAdmonitionIcon(type: string): string {
+  const icons: Record<string, string> = {
+    note: '📝',
+    warning: '⚠️',
+    tip: '💡',
+    info: 'ℹ️',
+    caution: '🔥',
+    important: '❗',
+  };
+  return icons[type] || '📝';
+}
+
+/**
+ * Mermaid image data for EPUB embedding
+ */
+export interface MermaidImageData {
+  id: string;
+  base64: string;
+}
+
+/**
  * Convert markdown to XHTML for EPUB
+ * Returns XHTML content and any generated mermaid images
  */
 export async function convertToXhtml(
   markdown: string,
   title: string,
   options?: {
     stylesheetHref?: string;  // External CSS file reference
+    mermaidAsPng?: boolean;   // Convert mermaid to PNG for EPUB compatibility
+    bodyClass?: string;       // Additional class for body element
   }
-): Promise<string> {
+): Promise<{ xhtml: string; mermaidImages: MermaidImageData[] }> {
+  // Normalize line endings
+  const normalizedMarkdown = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
   // Process mermaid blocks first
   const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
   const mermaidBlocks: Array<{ original: string; code: string }> = [];
   let match;
   
-  while ((match = mermaidRegex.exec(markdown)) !== null) {
+  while ((match = mermaidRegex.exec(normalizedMarkdown)) !== null) {
     mermaidBlocks.push({
       original: match[0],
       code: match[1],
     });
   }
   
-  // Replace mermaid blocks with SVGs
-  let processedMarkdown = markdown;
-  for (const block of mermaidBlocks) {
-    const svg = await renderMermaidToSvg(block.code);
-    if (svg) {
-      processedMarkdown = processedMarkdown.replace(
-        block.original,
-        `<div class="mermaid">${svg}</div>`
-      );
+  // Replace mermaid blocks with SVGs or PNGs
+  let processedMarkdown = normalizedMarkdown;
+  const mermaidImages: MermaidImageData[] = [];
+  
+  for (let i = 0; i < mermaidBlocks.length; i++) {
+    const block = mermaidBlocks[i];
+    
+    if (options?.mermaidAsPng) {
+      // Render as PNG for EPUB
+      const pngResult = await renderMermaidToPng(block.code);
+      if (pngResult) {
+        const imageId = `mermaid-${Date.now()}-${i}`;
+        mermaidImages.push({ id: imageId, base64: pngResult.base64 });
+        // Include width for proper display (height auto-scales)
+        processedMarkdown = processedMarkdown.replace(
+          block.original,
+          `<div class="mermaid"><img src="images/${imageId}.png" alt="Diagram" style="width:100%;max-width:${pngResult.width}px;height:auto;"/></div>`
+        );
+      } else {
+        // Fallback: create error placeholder image
+        const errorPlaceholder = createMermaidErrorPlaceholder(block.code);
+        if (errorPlaceholder) {
+          const imageId = `mermaid-error-${Date.now()}-${i}`;
+          mermaidImages.push({ id: imageId, base64: errorPlaceholder.base64 });
+          processedMarkdown = processedMarkdown.replace(
+            block.original,
+            `<div class="mermaid"><img src="images/${imageId}.png" alt="Diagram (render error)" style="width:100%;max-width:${errorPlaceholder.width}px;height:auto;"/></div>`
+          );
+        } else {
+          // Last resort: styled code block
+          processedMarkdown = processedMarkdown.replace(
+            block.original,
+            `<div class="mermaid-error"><p><strong>[Diagram]</strong></p><pre><code>${escapeHtml(block.code.substring(0, 200))}${block.code.length > 200 ? '...' : ''}</code></pre></div>`
+          );
+        }
+      }
+    } else {
+      // Render as SVG (for preview/HTML export)
+      const svg = await renderMermaidToSvg(block.code);
+      if (svg) {
+        processedMarkdown = processedMarkdown.replace(
+          block.original,
+          `<div class="mermaid">${svg}</div>`
+        );
+      }
     }
   }
+  
+  // Process admonitions (:::note, :::warning, etc.)
+  processedMarkdown = processAdmonitions(processedMarkdown);
   
   // Process tables
   processedMarkdown = processTablesInMarkdown(processedMarkdown);
@@ -223,11 +562,13 @@ export async function convertToXhtml(
     th, td { border: 1px solid #ddd; padding: 0.5em; }
     th { background: #f4f4f4; }
     .mermaid { text-align: center; margin: 1em 0; }
+    .mermaid img { max-width: 100%; height: auto; }
     .footnotes { font-size: 0.9em; border-top: 1px solid #ccc; margin-top: 2em; padding-top: 1em; }
   </style>`;
   
   // Wrap in XHTML document
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  const bodyClass = options?.bodyClass ? ` class="${options.bodyClass}"` : '';
+  const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -235,10 +576,12 @@ export async function convertToXhtml(
   <title>${escapeHtml(title)}</title>
   ${styleSection}
 </head>
-<body>
+<body${bodyClass}>
 ${html}
 </body>
 </html>`;
+  
+  return { xhtml, mermaidImages };
 }
 
 /**

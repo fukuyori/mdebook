@@ -2,7 +2,7 @@
 
 A browser-based Markdown eBook editor with VIM keybindings, multi-language support, and export to EPUB/PDF/HTML/Markdown.
 
-**Version: 0.4.0**
+**Version: 0.4.1**
 
 **[🇯🇵 日本語版はこちら](README.ja.md)**
 
@@ -19,16 +19,34 @@ A browser-based Markdown eBook editor with VIM keybindings, multi-language suppo
 - **Import**: Local files, URLs (Qiita, GitHub auto-conversion)
 - **Project Format**: `.mdebook` (ZIP-based) for saving/loading projects with images
 
-### EPUB Themes (v0.4.0)
+### EPUB Themes
 - **5 Preset Themes**: Classic, Modern, Technical, Novel, Academic
 - **Custom CSS Import**: Use your own CSS for EPUB styling
 - **CSS Export**: Export any theme CSS for customization
 - **Kindle-compliant**: All themes follow Amazon Kindle Publishing Guidelines
 
+### Book Structure Templates (v0.4.1)
+- **Colophon (奥付)**: Auto-placed at end, publication info template
+- **Preface (はじめに)**: Auto-placed at beginning
+- **Chapter Title Page (章扉)**: Decorative chapter openers with epigraphs
+- **Bibliography (参考文献)**: Citation format templates
+
+### Admonitions (Callout Blocks)
+```markdown
+:::note
+This is a note.
+:::
+
+:::warning Warning Title
+This is a warning message.
+:::
+```
+Supported types: `note`, `warning`, `tip`, `info`, `caution`, `important`
+
 ### Markdown Features
 - Tables (GFM)
 - Code blocks with syntax highlighting
-- Mermaid diagrams
+- Mermaid diagrams (PNG conversion for EPUB)
 - Footnotes
 - Image embedding (paste, drag-drop, file picker)
 
@@ -98,6 +116,26 @@ All themes are Kindle-compliant:
 - Headings: 1.0em - 1.3em (conservative sizing)
 - Margins: percentage-based
 
+## 📑 Book Structure
+
+### Template Menu
+
+Click "Add Template" to insert pre-formatted templates:
+
+| Template | File Name | Position |
+|----------|-----------|----------|
+| 📋 Colophon | `colophon.md` / `奥付.md` | End (auto) |
+| 📖 Preface | `preface.md` / `はじめに.md` | Beginning (auto) |
+| 📑 Chapter Title | `章扉N.md` | Manual |
+| 📚 Bibliography | `bibliography.md` / `参考文献.md` | Before colophon (auto) |
+
+### EPUB File Order
+Files are automatically sorted for EPUB export:
+1. Preface/Introduction
+2. Regular chapters (original order)
+3. Bibliography/References
+4. Colophon
+
 ## 🎮 VIM Commands
 
 | Command | Description |
@@ -142,7 +180,7 @@ mdebook/
 ## 📦 Export Formats
 
 ### EPUB
-Standard eBook format compatible with most e-readers. Supports cover image and custom themes.
+Standard eBook format compatible with most e-readers. Supports cover image, custom themes, and Mermaid diagram conversion.
 
 ### PDF
 Opens browser print dialog for PDF generation.
@@ -171,11 +209,18 @@ book-markdown.zip
 
 ## 📝 Changelog
 
+### v0.4.1
+- Book structure templates: Colophon, Preface, Chapter Title Page, Bibliography
+- Admonition blocks (:::note, :::warning, :::tip, etc.)
+- Automatic file ordering for EPUB (preface first, colophon last)
+- Cover image persistence fix
+- Mermaid PNG conversion for EPUB compatibility
+
 ### v0.4.0
 - Added 5 EPUB preset themes (Classic, Modern, Technical, Novel, Academic)
 - Custom CSS import/export for EPUB
 - Kindle Publishing Guidelines compliance
-- O'Reilly-style Technical theme
+- Hierarchical table of contents
 
 ### v0.3.2
 - EPUB cover image support

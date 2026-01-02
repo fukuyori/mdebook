@@ -37,6 +37,7 @@ export interface BookMetadata {
   coverImageId?: string;
   themeId?: string;
   customCss?: string;  // Custom CSS content for EPUB
+  tocDepth?: number;   // TOC depth (1-3), default 2
 }
 
 /**
@@ -111,9 +112,11 @@ export interface EpubSpineItem {
 }
 
 /**
- * EPUB TOC item
+ * EPUB TOC item (hierarchical)
  */
 export interface EpubTocItem {
   title: string;
   href: string;
+  level: number;        // 1 = h1, 2 = h2, etc.
+  children?: EpubTocItem[];
 }

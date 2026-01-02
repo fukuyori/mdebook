@@ -86,6 +86,7 @@ function getMimeType(filename: string): string {
 
 /**
  * Create manifest from project data
+ * Converts coverImageId to coverImageName for portability
  */
 function createManifest(
   files: EditorFile[],
@@ -94,9 +95,22 @@ function createManifest(
   images: ProjectImage[],
   version: string
 ): ProjectManifest {
+  // Convert coverImageId to coverImageName for portability
+  let savedMetadata = { ...metadata };
+  if (metadata.coverImageId) {
+    const coverImage = images.find(img => img.id === metadata.coverImageId);
+    if (coverImage) {
+      // Store the image name instead of ID (which is regenerated on load)
+      savedMetadata = {
+        ...metadata,
+        coverImageId: coverImage.name, // Store name, not ID
+      };
+    }
+  }
+  
   return {
     version,
-    metadata,
+    metadata: savedMetadata,
     uiLang,
     chapters: files.map(f => f.name),
     images: images.map(img => img.name),
@@ -201,23 +215,39 @@ export async function loadProjectFromZip(data: ArrayBuffer): Promise<ProjectData
     
     // Read images
     const images: ProjectImage[] = [];
+    const savedCoverImageName = manifest.metadata.coverImageId; // This is actually the image name
+    let newCoverImageId: string | undefined = undefined;
+    
     for (const imageName of manifest.images) {
       const imageFile = zip.files[`images/${imageName}`];
       if (imageFile) {
-        const data = await imageFile.async('arraybuffer');
+        const imageData = await imageFile.async('arraybuffer');
+        const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        
         images.push({
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+          id: newId,
           name: imageName,
-          data,
+          data: imageData,
           mimeType: getMimeType(imageName),
         });
+        
+        // If this image was the cover, save its new ID
+        if (savedCoverImageName && imageName === savedCoverImageName) {
+          newCoverImageId = newId;
+        }
       }
     }
+    
+    // Update metadata with new coverImageId
+    const updatedMetadata = {
+      ...manifest.metadata,
+      coverImageId: newCoverImageId,
+    };
     
     return {
       version: manifest.version,
       files,
-      metadata: manifest.metadata,
+      metadata: updatedMetadata,
       uiLang: manifest.uiLang,
       images,
     };

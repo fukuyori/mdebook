@@ -119,6 +119,81 @@ hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
 
 .footnote { font-size: 0.85em; color: #666; }
 sup { font-size: 0.75em; vertical-align: super; }
+
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+  page-break-inside: avoid;
+}
+.mermaid img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Colophon (奥付) */
+.colophon { page-break-before: always; margin-top: 3em; }
+.colophon h1 { text-align: center; border-bottom: none; }
+.colophon hr { border: none; border-top: 1px solid #999; margin: 1.5em 0; }
+.colophon table { width: auto; margin: 1em auto; border: none; }
+.colophon th, .colophon td { border: none; padding: 0.3em 1em; }
+.colophon th { text-align: right; font-weight: normal; color: #666; }
+.colophon td { text-align: left; }
+
+/* Chapter Title Page (章扉) */
+.chapter-title-page {
+  page-break-before: always;
+  page-break-after: always;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  padding: 2em;
+}
+.chapter-title-page h1 {
+  font-size: 1.2em;
+  font-weight: normal;
+  color: #666;
+  margin-bottom: 0.5em;
+  border-bottom: none;
+}
+.chapter-title-page h2 {
+  font-size: 1.8em;
+  font-weight: bold;
+  margin-bottom: 2em;
+}
+.chapter-title-page blockquote {
+  font-style: italic;
+  border-left: none;
+  padding: 0;
+  margin: 2em auto;
+  max-width: 80%;
+  color: #555;
+}
+
+/* Admonitions (補足欄) */
+.admonition {
+  margin: 1.5em 0;
+  padding: 1em;
+  border-left: 4px solid #666;
+  background: #f9f9f9;
+  page-break-inside: avoid;
+}
+.admonition-title {
+  font-weight: bold;
+  margin: 0 0 0.5em 0;
+}
+.admonition-content { margin: 0; }
+.admonition-content p { margin: 0.5em 0; }
+.admonition-note { border-left-color: #2196f3; background: #e3f2fd; }
+.admonition-warning { border-left-color: #ff9800; background: #fff3e0; }
+.admonition-tip { border-left-color: #4caf50; background: #e8f5e9; }
+.admonition-info { border-left-color: #00bcd4; background: #e0f7fa; }
+.admonition-caution { border-left-color: #f44336; background: #ffebee; }
+.admonition-important { border-left-color: #9c27b0; background: #f3e5f5; }
 `;
 
 const modernCss = `
@@ -211,6 +286,85 @@ hr { border: none; height: 2px; background: #3498db; margin: 2em 0; }
 
 .note { padding: 0.8em 2.5%; margin: 1em 0; background: #e8f4f8; border-left: 4px solid #3498db; }
 .warning { padding: 0.8em 2.5%; margin: 1em 0; background: #fdf2e9; border-left: 4px solid #e67e22; }
+
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+  page-break-inside: avoid;
+}
+.mermaid img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Colophon (奥付) */
+.colophon { page-break-before: always; margin-top: 3em; }
+.colophon h1 { text-align: center; }
+.colophon hr { border: none; height: 2px; background: #3498db; margin: 1.5em 0; }
+.colophon table { width: auto; margin: 1em auto; border: none; }
+.colophon th, .colophon td { border: none; padding: 0.3em 1em; }
+.colophon th { text-align: right; font-weight: normal; color: #7f8c8d; }
+.colophon td { text-align: left; }
+
+/* Chapter Title Page (章扉) */
+.chapter-title-page {
+  page-break-before: always;
+  page-break-after: always;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  padding: 2em;
+}
+.chapter-title-page h1 {
+  font-size: 1em;
+  font-weight: 300;
+  color: #3498db;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.5em;
+}
+.chapter-title-page h2 {
+  font-size: 2em;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 2em;
+}
+.chapter-title-page blockquote {
+  font-style: italic;
+  border-left: none;
+  padding: 0;
+  margin: 2em auto;
+  max-width: 80%;
+  color: #7f8c8d;
+}
+
+/* Admonitions (補足欄) */
+.admonition {
+  margin: 1.5em 0;
+  padding: 1em 1.5em;
+  border-radius: 4px;
+  border-left: 4px solid #3498db;
+  background: #f8f9fa;
+  page-break-inside: avoid;
+}
+.admonition-title {
+  font-weight: 600;
+  margin: 0 0 0.5em 0;
+  color: #2c3e50;
+}
+.admonition-content { margin: 0; }
+.admonition-content p { margin: 0.5em 0; }
+.admonition-note { border-left-color: #3498db; background: #ebf5fb; }
+.admonition-warning { border-left-color: #f39c12; background: #fef9e7; }
+.admonition-tip { border-left-color: #27ae60; background: #eafaf1; }
+.admonition-info { border-left-color: #17a2b8; background: #e8f6f8; }
+.admonition-caution { border-left-color: #e74c3c; background: #fdedec; }
+.admonition-important { border-left-color: #9b59b6; background: #f5eef8; }
 `;
 
 const technicalCss = `
@@ -466,6 +620,98 @@ kbd {
   font-style: italic;
   color: #8e0012;
 }
+
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+  page-break-inside: avoid;
+  background: #fafafa;
+  padding: 1em;
+  border: 1px solid #ddd;
+}
+.mermaid img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Colophon (奥付) */
+.colophon { page-break-before: always; margin-top: 3em; }
+.colophon h1 { text-align: center; font-family: "Noto Sans", sans-serif; }
+.colophon hr { border: none; border-top: 1px solid #8e0012; margin: 1.5em 0; }
+.colophon table { width: auto; margin: 1em auto; border: none; }
+.colophon th, .colophon td { border: none; padding: 0.3em 1em; }
+.colophon th { text-align: right; font-weight: normal; color: #666; }
+.colophon td { text-align: left; }
+
+/* Chapter Title Page (章扉) */
+.chapter-title-page {
+  page-break-before: always;
+  page-break-after: always;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  padding: 2em;
+  background: #fafafa;
+}
+.chapter-title-page h1 {
+  font-family: "Noto Sans", sans-serif;
+  font-size: 1em;
+  font-weight: normal;
+  color: #8e0012;
+  margin-bottom: 0.5em;
+}
+.chapter-title-page h2 {
+  font-family: "Noto Sans", sans-serif;
+  font-size: 1.6em;
+  font-weight: bold;
+  color: #000;
+  margin-bottom: 2em;
+}
+.chapter-title-page blockquote {
+  font-style: italic;
+  border-left: none;
+  padding: 0;
+  margin: 2em auto;
+  max-width: 80%;
+  color: #666;
+  background: none;
+}
+
+/* Admonitions (補足欄) - O'Reilly Style */
+.admonition {
+  margin: 1.5em 0;
+  padding: 1em;
+  border: 1px solid #ddd;
+  background: #fafafa;
+  page-break-inside: avoid;
+}
+.admonition-title {
+  font-family: "Noto Sans", sans-serif;
+  font-weight: bold;
+  font-size: 0.9em;
+  margin: 0 0 0.5em 0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #ddd;
+}
+.admonition-content { margin: 0; font-size: 0.95em; }
+.admonition-content p { margin: 0.5em 0; }
+.admonition-note { border-color: #2196f3; }
+.admonition-note .admonition-title { color: #1565c0; }
+.admonition-warning { border-color: #ff9800; background: #fff8e1; }
+.admonition-warning .admonition-title { color: #e65100; }
+.admonition-tip { border-color: #4caf50; }
+.admonition-tip .admonition-title { color: #2e7d32; }
+.admonition-info { border-color: #00bcd4; }
+.admonition-info .admonition-title { color: #00838f; }
+.admonition-caution { border-color: #f44336; background: #ffebee; }
+.admonition-caution .admonition-title { color: #c62828; }
+.admonition-important { border-color: #8e0012; background: #fce4ec; }
+.admonition-important .admonition-title { color: #8e0012; }
 `;
 
 const novelCss = `
@@ -550,6 +796,85 @@ hr::before { content: "* * *"; color: #999; letter-spacing: 0.5em; }
 .chapter-opening { margin-top: 3em; margin-bottom: 2em; text-align: center; }
 .chapter-number { font-size: 0.9em; color: #666; letter-spacing: 0.3em; }
 .author-note { font-size: 0.9em; color: #666; border-top: 1px solid #ccc; margin-top: 2em; padding-top: 0.8em; }
+
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+  page-break-inside: avoid;
+}
+.mermaid img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Colophon (奥付) */
+.colophon { page-break-before: always; margin-top: 3em; text-indent: 0; }
+.colophon h1 { text-align: center; }
+.colophon hr { border: none; text-align: center; margin: 1.5em 0; }
+.colophon hr::before { content: "* * *"; color: #999; letter-spacing: 0.5em; }
+.colophon table { width: auto; margin: 1em auto; border: none; }
+.colophon th, .colophon td { border: none; padding: 0.3em 1em; text-indent: 0; }
+.colophon th { text-align: right; font-weight: normal; color: #666; }
+.colophon td { text-align: left; }
+
+/* Chapter Title Page (章扉) */
+.chapter-title-page {
+  page-break-before: always;
+  page-break-after: always;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  text-indent: 0;
+  padding: 2em;
+}
+.chapter-title-page h1 {
+  font-size: 1.1em;
+  font-weight: normal;
+  color: #666;
+  margin-bottom: 0.5em;
+}
+.chapter-title-page h2 {
+  font-size: 1.6em;
+  font-weight: bold;
+  margin-bottom: 2em;
+}
+.chapter-title-page blockquote {
+  font-style: italic;
+  border-left: none;
+  padding: 0;
+  margin: 2em auto;
+  max-width: 80%;
+  color: #666;
+  text-indent: 0;
+}
+
+/* Admonitions (補足欄) */
+.admonition {
+  margin: 1.5em 0;
+  padding: 1em;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  text-indent: 0;
+  page-break-inside: avoid;
+}
+.admonition-title {
+  font-weight: bold;
+  margin: 0 0 0.5em 0;
+  text-indent: 0;
+}
+.admonition-content { margin: 0; text-indent: 0; }
+.admonition-content p { margin: 0.5em 0; text-indent: 0; }
+.admonition-note .admonition-title { color: #333; }
+.admonition-warning .admonition-title { color: #8b4513; }
+.admonition-tip .admonition-title { color: #2e8b57; }
+.admonition-info .admonition-title { color: #4682b4; }
+.admonition-caution .admonition-title { color: #cd5c5c; }
+.admonition-important .admonition-title { color: #800080; }
 `;
 
 const academicCss = `
@@ -613,6 +938,78 @@ hr { border: none; border-top: 1px solid #000; margin: 1.5em 0; }
 .bib-entry { margin-bottom: 0; margin-top: 0.5em; padding-left: 5%; text-indent: -5%; }
 .keywords { margin: 1em 0; font-size: 0.95em; }
 .keywords-label { font-weight: bold; }
+
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+  page-break-inside: avoid;
+}
+.mermaid img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Colophon (奥付) */
+.colophon { page-break-before: always; margin-top: 3em; }
+.colophon h1 { text-align: center; }
+.colophon hr { border: none; border-top: 1px solid #000; margin: 1.5em 0; }
+.colophon table { width: auto; margin: 1em auto; border: none; }
+.colophon th, .colophon td { border: none; padding: 0.3em 1em; }
+.colophon th { text-align: right; font-weight: normal; }
+.colophon td { text-align: left; }
+
+/* Chapter Title Page (章扉) */
+.chapter-title-page {
+  page-break-before: always;
+  page-break-after: always;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  padding: 2em;
+}
+.chapter-title-page h1 {
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0.5em;
+}
+.chapter-title-page h2 {
+  font-size: 1.4em;
+  font-weight: bold;
+  margin-bottom: 2em;
+}
+.chapter-title-page blockquote {
+  font-style: italic;
+  border-left: none;
+  padding: 0;
+  margin: 2em auto;
+  max-width: 80%;
+}
+
+/* Admonitions (補足欄) */
+.admonition {
+  margin: 1.5em 0;
+  padding: 1em;
+  border: 1px solid #000;
+  page-break-inside: avoid;
+}
+.admonition-title {
+  font-weight: bold;
+  font-variant: small-caps;
+  margin: 0 0 0.5em 0;
+}
+.admonition-content { margin: 0; }
+.admonition-content p { margin: 0.5em 0; }
+.admonition-note { border-width: 1px; }
+.admonition-warning { border-width: 2px; }
+.admonition-tip { border-style: dashed; }
+.admonition-info { border-style: dotted; }
+.admonition-caution { border-width: 2px; border-style: double; }
+.admonition-important { border-width: 3px; }
 `;
 
 export const PRESET_THEMES: EpubTheme[] = [

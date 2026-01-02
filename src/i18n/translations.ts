@@ -42,6 +42,8 @@ export interface TranslationStrings {
   importCss: string;
   exportCss: string;
   customCssLoaded: string;
+  tocDepth: string;
+  tocDepthNone: string;
   
   // Import Modal
   importFromUrl: string;
@@ -131,6 +133,22 @@ export interface TranslationStrings {
   // New chapter
   newChapter: string;
   writeContentHere: string;
+  
+  // Templates
+  addTemplate: string;
+  templateColophon: string;
+  templatePreface: string;
+  templateChapterTitle: string;
+  templateBibliography: string;
+  colophonTitle: string;
+  colophonBookTitle: string;
+  colophonAuthor: string;
+  colophonPublisher: string;
+  colophonPublishDate: string;
+  colophonCopyright: string;
+  colophonEbookCode: string;
+  colophonOriginalEdition: string;
+  colophonRestrictions: string;
 }
 
 /**
@@ -175,6 +193,8 @@ export const en: TranslationStrings = {
   importCss: 'Import CSS',
   exportCss: 'Export CSS',
   customCssLoaded: 'Custom CSS loaded',
+  tocDepth: 'TOC Depth',
+  tocDepthNone: 'None',
   
   // Import Modal
   importFromUrl: 'Import from URL',
@@ -264,6 +284,22 @@ export const en: TranslationStrings = {
   // New chapter
   newChapter: 'New Chapter',
   writeContentHere: 'Write your content here.',
+  
+  // Templates
+  addTemplate: 'Add Template',
+  templateColophon: 'Colophon',
+  templatePreface: 'Preface',
+  templateChapterTitle: 'Chapter Title Page',
+  templateBibliography: 'Bibliography',
+  colophonTitle: 'Colophon',
+  colophonBookTitle: 'Book Title',
+  colophonAuthor: 'Author',
+  colophonPublisher: 'Publisher',
+  colophonPublishDate: 'Publication Date',
+  colophonCopyright: 'Copyright',
+  colophonEbookCode: 'E-book Code',
+  colophonOriginalEdition: 'Original Edition',
+  colophonRestrictions: 'Unauthorized reproduction, reprinting, or modification of this book is prohibited.',
 };
 
 /**
@@ -308,6 +344,8 @@ export const ja: TranslationStrings = {
   importCss: 'CSSインポート',
   exportCss: 'CSSエクスポート',
   customCssLoaded: 'カスタムCSS読込完了',
+  tocDepth: '目次深度',
+  tocDepthNone: 'なし',
   
   // Import Modal
   importFromUrl: 'URLからインポート',
@@ -397,6 +435,22 @@ export const ja: TranslationStrings = {
   // New chapter
   newChapter: '新しい章',
   writeContentHere: 'ここに内容を書いてください。',
+  
+  // Templates
+  addTemplate: 'テンプレート追加',
+  templateColophon: '奥付',
+  templatePreface: 'はじめに',
+  templateChapterTitle: '章扉',
+  templateBibliography: '参考文献',
+  colophonTitle: '奥付',
+  colophonBookTitle: '書名',
+  colophonAuthor: '著者',
+  colophonPublisher: '発行',
+  colophonPublishDate: '発行日',
+  colophonCopyright: '著作権',
+  colophonEbookCode: '電子出版コード',
+  colophonOriginalEdition: '底本',
+  colophonRestrictions: '本書の無断複製、転載、改ざんを禁じます。',
 };
 
 /**
@@ -441,6 +495,8 @@ export const zh: TranslationStrings = {
   importCss: '导入CSS',
   exportCss: '导出CSS',
   customCssLoaded: '自定义CSS已加载',
+  tocDepth: '目录深度',
+  tocDepthNone: '无',
   
   // Import Modal
   importFromUrl: '从URL导入',
@@ -530,6 +586,22 @@ export const zh: TranslationStrings = {
   // New chapter
   newChapter: '新章节',
   writeContentHere: '在此输入内容。',
+  
+  // Templates
+  addTemplate: '添加模板',
+  templateColophon: '版权页',
+  templatePreface: '前言',
+  templateChapterTitle: '章节扉页',
+  templateBibliography: '参考文献',
+  colophonTitle: '版权页',
+  colophonBookTitle: '书名',
+  colophonAuthor: '作者',
+  colophonPublisher: '出版',
+  colophonPublishDate: '出版日期',
+  colophonCopyright: '版权',
+  colophonEbookCode: '电子出版代码',
+  colophonOriginalEdition: '底本',
+  colophonRestrictions: '未经许可，禁止复制、转载或篡改本书。',
 };
 
 /**
@@ -574,6 +646,8 @@ export const es: TranslationStrings = {
   importCss: 'Importar CSS',
   exportCss: 'Exportar CSS',
   customCssLoaded: 'CSS personalizado cargado',
+  tocDepth: 'Profundidad del índice',
+  tocDepthNone: 'Ninguno',
   
   // Import Modal
   importFromUrl: 'Importar desde URL',
@@ -663,6 +737,22 @@ export const es: TranslationStrings = {
   // New chapter
   newChapter: 'Nuevo capítulo',
   writeContentHere: 'Escriba su contenido aquí.',
+  
+  // Templates
+  addTemplate: 'Agregar plantilla',
+  templateColophon: 'Colofón',
+  templatePreface: 'Prefacio',
+  templateChapterTitle: 'Portada de capítulo',
+  templateBibliography: 'Bibliografía',
+  colophonTitle: 'Colofón',
+  colophonBookTitle: 'Título',
+  colophonAuthor: 'Autor',
+  colophonPublisher: 'Editorial',
+  colophonPublishDate: 'Fecha de publicación',
+  colophonCopyright: 'Derechos de autor',
+  colophonEbookCode: 'Código de libro electrónico',
+  colophonOriginalEdition: 'Edición original',
+  colophonRestrictions: 'Se prohíbe la reproducción, redistribución o modificación no autorizada de este libro.',
 };
 
 /**
@@ -707,6 +797,8 @@ export const ko: TranslationStrings = {
   importCss: 'CSS 가져오기',
   exportCss: 'CSS 내보내기',
   customCssLoaded: '사용자 정의 CSS 로드됨',
+  tocDepth: '목차 깊이',
+  tocDepthNone: '없음',
   
   // Import Modal
   importFromUrl: 'URL에서 가져오기',
@@ -796,6 +888,22 @@ export const ko: TranslationStrings = {
   // New chapter
   newChapter: '새 장',
   writeContentHere: '여기에 내용을 입력하세요.',
+  
+  // Templates
+  addTemplate: '템플릿 추가',
+  templateColophon: '판권',
+  templatePreface: '서문',
+  templateChapterTitle: '장 표지',
+  templateBibliography: '참고문헌',
+  colophonTitle: '판권',
+  colophonBookTitle: '서명',
+  colophonAuthor: '저자',
+  colophonPublisher: '발행',
+  colophonPublishDate: '발행일',
+  colophonCopyright: '저작권',
+  colophonEbookCode: '전자출판코드',
+  colophonOriginalEdition: '원본',
+  colophonRestrictions: '이 책의 무단 복제, 전재, 변조를 금합니다.',
 };
 
 /**
@@ -929,4 +1037,301 @@ ${t.sampleParagraph}
 
 [^1]: ${t.sampleFootnote}
 `;
+}
+
+/**
+ * Get colophon template markdown
+ */
+export function getColophonTemplate(t: TranslationStrings, metadata?: { title?: string; author?: string }): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const dateStr = `${year}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  const title = metadata?.title || '{{title}}';
+  const author = metadata?.author || '{{author}}';
+  
+  return `# ${t.colophonTitle}
+
+---
+
+## ${title}
+
+| | |
+|---|---|
+| ${t.colophonBookTitle} | ${title} |
+| ${t.colophonAuthor} | ${author} |
+| ${t.colophonPublisher} | |
+| ${t.colophonPublishDate} | ${dateStr} |
+
+---
+
+© ${year} ${author}
+
+${t.colophonRestrictions}
+
+<!-- ${t.colophonEbookCode}: -->
+<!-- ${t.colophonOriginalEdition}: -->
+`;
+}
+
+/**
+ * Get preface template markdown
+ */
+export function getPrefaceTemplate(t: TranslationStrings): string {
+  return `# ${t.templatePreface}
+
+${t.writeContentHere}
+`;
+}
+
+/**
+ * Get chapter title page template markdown
+ */
+export function getChapterTitleTemplate(lang: UILanguage, chapterNumber?: number): string {
+  const num = chapterNumber || 1;
+  
+  const templates: Record<UILanguage, string> = {
+    ja: `<div class="chapter-title-page">
+
+# 第${num}章
+
+## 章タイトルをここに入力
+
+> "引用文（任意）"
+> — 著者名
+
+</div>
+
+---
+
+<!-- 本文をここから書き始めてください -->
+`,
+    en: `<div class="chapter-title-page">
+
+# Chapter ${num}
+
+## Enter Chapter Title Here
+
+> "Optional quotation"
+> — Author Name
+
+</div>
+
+---
+
+<!-- Start writing your content here -->
+`,
+    zh: `<div class="chapter-title-page">
+
+# 第${num}章
+
+## 在此输入章节标题
+
+> "引用（可选）"
+> — 作者名
+
+</div>
+
+---
+
+<!-- 从这里开始写正文 -->
+`,
+    es: `<div class="chapter-title-page">
+
+# Capítulo ${num}
+
+## Ingrese el título del capítulo aquí
+
+> "Cita opcional"
+> — Nombre del autor
+
+</div>
+
+---
+
+<!-- Comience a escribir su contenido aquí -->
+`,
+    ko: `<div class="chapter-title-page">
+
+# 제${num}장
+
+## 여기에 장 제목을 입력하세요
+
+> "인용문 (선택 사항)"
+> — 저자명
+
+</div>
+
+---
+
+<!-- 여기서부터 본문을 작성하세요 -->
+`,
+  };
+  
+  return templates[lang] || templates.en;
+}
+
+/**
+ * Get bibliography template markdown
+ */
+export function getBibliographyTemplate(lang: UILanguage): string {
+  const templates: Record<UILanguage, string> = {
+    ja: `# 参考文献
+
+## 書籍
+
+[1] 著者名 (出版年). *書籍タイトル*. 出版社.
+
+[2] 著者名 (出版年). *書籍タイトル* (第2版). 出版社.
+
+## 論文・記事
+
+[3] 著者名 (発表年). 論文タイトル. *ジャーナル名*, 巻(号), ページ範囲.
+
+[4] 著者名 (発表年). 記事タイトル. *雑誌名*, ページ範囲.
+
+## Webサイト
+
+[5] 著者名またはサイト名 (閲覧年). ページタイトル. URL (閲覧日: YYYY年MM月DD日)
+
+<!-- 
+参考文献の書式例:
+
+書籍:
+[N] 山田太郎 (2024). *プログラミングの基礎*. 技術出版社.
+
+論文:
+[N] 田中花子, 鈴木一郎 (2023). 機械学習の応用. *情報処理学会誌*, 64(3), 123-145.
+
+Webサイト:
+[N] MDN Web Docs (2024). JavaScript ガイド. https://developer.mozilla.org/ja/ (閲覧日: 2024年1月1日)
+-->
+`,
+    en: `# Bibliography
+
+## Books
+
+[1] Author Name (Year). *Book Title*. Publisher.
+
+[2] Author Name (Year). *Book Title* (2nd ed.). Publisher.
+
+## Journal Articles
+
+[3] Author Name (Year). Article Title. *Journal Name*, Volume(Issue), Page Range.
+
+[4] Author Name (Year). Article Title. *Magazine Name*, Page Range.
+
+## Websites
+
+[5] Author or Site Name (Year). Page Title. URL (Accessed: Month DD, YYYY)
+
+<!-- 
+Bibliography format examples:
+
+Book:
+[N] Smith, J. (2024). *Introduction to Programming*. Tech Publisher.
+
+Journal Article:
+[N] Johnson, A., & Williams, B. (2023). Machine Learning Applications. *Journal of Computer Science*, 64(3), 123-145.
+
+Website:
+[N] MDN Web Docs (2024). JavaScript Guide. https://developer.mozilla.org/en-US/ (Accessed: January 1, 2024)
+-->
+`,
+    zh: `# 参考文献
+
+## 书籍
+
+[1] 作者名 (出版年). *书名*. 出版社.
+
+[2] 作者名 (出版年). *书名* (第2版). 出版社.
+
+## 论文
+
+[3] 作者名 (发表年). 论文标题. *期刊名*, 卷(期), 页码范围.
+
+[4] 作者名 (发表年). 文章标题. *杂志名*, 页码范围.
+
+## 网站
+
+[5] 作者或网站名 (访问年). 页面标题. URL (访问日期: YYYY年MM月DD日)
+
+<!-- 
+参考文献格式示例:
+
+书籍:
+[N] 张三 (2024). *编程基础*. 技术出版社.
+
+论文:
+[N] 李四, 王五 (2023). 机器学习应用. *计算机科学杂志*, 64(3), 123-145.
+
+网站:
+[N] MDN Web Docs (2024). JavaScript 指南. https://developer.mozilla.org/zh-CN/ (访问日期: 2024年1月1日)
+-->
+`,
+    es: `# Bibliografía
+
+## Libros
+
+[1] Nombre del Autor (Año). *Título del Libro*. Editorial.
+
+[2] Nombre del Autor (Año). *Título del Libro* (2ª ed.). Editorial.
+
+## Artículos de Revistas
+
+[3] Nombre del Autor (Año). Título del Artículo. *Nombre de la Revista*, Volumen(Número), Rango de Páginas.
+
+[4] Nombre del Autor (Año). Título del Artículo. *Nombre de la Revista*, Rango de Páginas.
+
+## Sitios Web
+
+[5] Autor o Nombre del Sitio (Año). Título de la Página. URL (Consultado: DD de Mes de YYYY)
+
+<!-- 
+Ejemplos de formato de bibliografía:
+
+Libro:
+[N] García, J. (2024). *Introducción a la Programación*. Editorial Técnica.
+
+Artículo:
+[N] López, A., & Martínez, B. (2023). Aplicaciones de Aprendizaje Automático. *Revista de Informática*, 64(3), 123-145.
+
+Sitio web:
+[N] MDN Web Docs (2024). Guía de JavaScript. https://developer.mozilla.org/es/ (Consultado: 1 de enero de 2024)
+-->
+`,
+    ko: `# 참고문헌
+
+## 도서
+
+[1] 저자명 (출판년도). *책 제목*. 출판사.
+
+[2] 저자명 (출판년도). *책 제목* (제2판). 출판사.
+
+## 논문
+
+[3] 저자명 (발표년도). 논문 제목. *학술지명*, 권(호), 페이지 범위.
+
+[4] 저자명 (발표년도). 기사 제목. *잡지명*, 페이지 범위.
+
+## 웹사이트
+
+[5] 저자 또는 사이트명 (접속년도). 페이지 제목. URL (접속일: YYYY년 MM월 DD일)
+
+<!-- 
+참고문헌 형식 예시:
+
+도서:
+[N] 김철수 (2024). *프로그래밍 기초*. 기술출판사.
+
+논문:
+[N] 이영희, 박민수 (2023). 머신러닝 응용. *컴퓨터과학저널*, 64(3), 123-145.
+
+웹사이트:
+[N] MDN Web Docs (2024). JavaScript 가이드. https://developer.mozilla.org/ko/ (접속일: 2024년 1월 1일)
+-->
+`,
+  };
+  
+  return templates[lang] || templates.en;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { UILanguage, EditorFile, BookMetadata, ExportFormat, ProjectImage } from '../types';
-import { getTranslations, getSampleMarkdown, getSavedLanguage, saveLanguage, LANGUAGE_NAMES, SUPPORTED_LANGUAGES } from '../i18n/translations';
+import { getTranslations, getSampleMarkdown, getColophonTemplate, getPrefaceTemplate, getChapterTitleTemplate, getBibliographyTemplate, getSavedLanguage, saveLanguage, LANGUAGE_NAMES, SUPPORTED_LANGUAGES } from '../i18n/translations';
 import { VERSION } from '../constants';
 import { PRESET_THEMES, DEFAULT_THEME_ID, getThemeCss, type ThemeId } from '../themes';
 import { 
@@ -304,6 +304,104 @@ export const App: React.FC = () => {
     setFiles(prev => [...prev, newFile]);
     setActiveFileId(newId);
   }, [files.length, t.defaultFileName, t.newChapter, t.writeContentHere]);
+  
+  // Add colophon template
+  const addColophonTemplate = useCallback(() => {
+    // Check if colophon already exists
+    const hasColophon = files.some(f => 
+      f.name.toLowerCase() === 'colophon.md' || f.name === '奥付.md'
+    );
+    if (hasColophon) {
+      alert(uiLang === 'ja' ? '奥付ファイルは既に存在します' : 'Colophon file already exists');
+      return;
+    }
+    
+    const newId = Date.now().toString();
+    const fileName = uiLang === 'ja' ? '奥付.md' : 'colophon.md';
+    const newFile: EditorFile = {
+      id: newId,
+      name: fileName,
+      content: getColophonTemplate(t, { title: metadata.title, author: metadata.author }),
+    };
+    setFiles(prev => [...prev, newFile]);
+    setActiveFileId(newId);
+  }, [files, uiLang, t, metadata.title, metadata.author]);
+  
+  // Add preface template
+  const addPrefaceTemplate = useCallback(() => {
+    const newId = Date.now().toString();
+    const fileName = uiLang === 'ja' ? 'はじめに.md' : 'preface.md';
+    const newFile: EditorFile = {
+      id: newId,
+      name: fileName,
+      content: getPrefaceTemplate(t),
+    };
+    // Insert at beginning
+    setFiles(prev => [newFile, ...prev]);
+    setActiveFileId(newId);
+  }, [uiLang, t]);
+  
+  // Add chapter title page template
+  const addChapterTitleTemplate = useCallback(() => {
+    // Count existing chapter title pages to determine chapter number
+    const chapterTitleCount = files.filter(f => 
+      f.name.match(/^(chapter|章扉|제|capítulo|第)/i) && f.content.includes('chapter-title-page')
+    ).length;
+    const chapterNumber = chapterTitleCount + 1;
+    
+    const newId = Date.now().toString();
+    const fileNames: Record<string, string> = {
+      ja: `章扉${chapterNumber}.md`,
+      en: `chapter${chapterNumber}-title.md`,
+      zh: `第${chapterNumber}章扉页.md`,
+      es: `capitulo${chapterNumber}-portada.md`,
+      ko: `제${chapterNumber}장표지.md`,
+    };
+    const fileName = fileNames[uiLang] || fileNames.en;
+    
+    const newFile: EditorFile = {
+      id: newId,
+      name: fileName,
+      content: getChapterTitleTemplate(uiLang, chapterNumber),
+    };
+    setFiles(prev => [...prev, newFile]);
+    setActiveFileId(newId);
+  }, [files, uiLang]);
+  
+  // Add bibliography template
+  const addBibliographyTemplate = useCallback(() => {
+    // Check if bibliography already exists
+    const hasBibliography = files.some(f => 
+      f.name.toLowerCase() === 'bibliography.md' || 
+      f.name === '参考文献.md' ||
+      f.name === '참고문헌.md'
+    );
+    if (hasBibliography) {
+      alert(uiLang === 'ja' ? '参考文献ファイルは既に存在します' : 'Bibliography file already exists');
+      return;
+    }
+    
+    const newId = Date.now().toString();
+    const fileNames: Record<string, string> = {
+      ja: '参考文献.md',
+      en: 'bibliography.md',
+      zh: '参考文献.md',
+      es: 'bibliografia.md',
+      ko: '참고문헌.md',
+    };
+    const fileName = fileNames[uiLang] || fileNames.en;
+    
+    const newFile: EditorFile = {
+      id: newId,
+      name: fileName,
+      content: getBibliographyTemplate(uiLang),
+    };
+    setFiles(prev => [...prev, newFile]);
+    setActiveFileId(newId);
+  }, [files, uiLang]);
+  
+  // Template menu state
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   
   // Delete file
   const deleteFile = useCallback((id: string) => {
@@ -1217,6 +1315,19 @@ export const App: React.FC = () => {
                 ↓ CSS
               </button>
             </label>
+            <label className="flex items-center gap-2">
+              <span className="text-sm">{t.tocDepth}:</span>
+              <select
+                value={metadata.tocDepth ?? 2}
+                onChange={(e) => setMetadata(prev => ({ ...prev, tocDepth: parseInt(e.target.value) }))}
+                className={`px-2 py-1 rounded text-sm ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'} border`}
+              >
+                <option value={0}>{t.tocDepthNone}</option>
+                <option value={1}>h1</option>
+                <option value={2}>h1-h2</option>
+                <option value={3}>h1-h3</option>
+              </select>
+            </label>
           </div>
         </div>
       )}
@@ -1293,16 +1404,74 @@ export const App: React.FC = () => {
               </div>
             ))}
           </div>
-          <button
-            onClick={() => { addNewFile(); focusEditor(); }}
-            className={`w-full px-3 py-2 text-sm flex items-center gap-2 border-t ${
-              isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'
-            }`}
-            title={t.newFile}
-          >
-            <Icons.Plus size={14} />
-            {t.newFile}
-          </button>
+          
+          {/* New file buttons */}
+          <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+            <button
+              onClick={() => { addNewFile(); focusEditor(); }}
+              className={`w-full px-3 py-2 text-sm flex items-center gap-2 ${
+                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+              }`}
+              title={t.newFile}
+            >
+              <Icons.Plus size={14} />
+              {t.newFile}
+            </button>
+            
+            {/* Template menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+                className={`w-full px-3 py-2 text-sm flex items-center gap-2 border-t ${
+                  isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'
+                }`}
+                title={t.addTemplate}
+              >
+                <Icons.File size={14} />
+                {t.addTemplate}
+                <span className="ml-auto text-xs">▼</span>
+              </button>
+              
+              {showTemplateMenu && (
+                <div className={`absolute bottom-full left-0 w-full shadow-lg z-50 ${
+                  isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                }`}>
+                  <button
+                    onClick={() => { addColophonTemplate(); setShowTemplateMenu(false); focusEditor(); }}
+                    className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${
+                      isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    📋 {t.templateColophon}
+                  </button>
+                  <button
+                    onClick={() => { addPrefaceTemplate(); setShowTemplateMenu(false); focusEditor(); }}
+                    className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 border-t ${
+                      isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    📖 {t.templatePreface}
+                  </button>
+                  <button
+                    onClick={() => { addChapterTitleTemplate(); setShowTemplateMenu(false); focusEditor(); }}
+                    className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 border-t ${
+                      isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    📑 {t.templateChapterTitle}
+                  </button>
+                  <button
+                    onClick={() => { addBibliographyTemplate(); setShowTemplateMenu(false); focusEditor(); }}
+                    className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 border-t ${
+                      isDark ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    📚 {t.templateBibliography}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         
         {/* Editor */}

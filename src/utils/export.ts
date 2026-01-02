@@ -1,5 +1,5 @@
 import type { EditorFile, BookMetadata, EpubManifestItem, EpubSpineItem, EpubTocItem, ProjectImage } from '../types';
-import { convertToXhtml, processTablesInMarkdown, renderMermaidToSvg, parseMarkdown } from './markdown';
+import { convertToXhtml, processTablesInMarkdown, renderMermaidToSvg, parseMarkdown, type MermaidImageData } from './markdown';
 import { EPUB_CONTAINER_XML, EPUB_MIMETYPE } from '../constants';
 import { getThemeCss, DEFAULT_THEME_ID, type ThemeId } from '../themes';
 
@@ -111,6 +111,70 @@ export async function exportMarkdownZip(
 }
 
 /**
+ * Check if a file is a colophon (奥付)
+ */
+function isColophonFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower === 'colophon.md' || lower === '奥付.md';
+}
+
+/**
+ * Check if a file is a preface (はじめに)
+ */
+function isPrefaceFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower === 'preface.md' || lower === 'はじめに.md' || 
+         lower === 'introduction.md' || lower === 'foreword.md';
+}
+
+/**
+ * Check if a file is a bibliography (参考文献)
+ */
+function isBibliographyFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower === 'bibliography.md' || lower === '参考文献.md' ||
+         lower === 'references.md' || lower === 'bibliografia.md' ||
+         lower === '참고문헌.md';
+}
+
+/**
+ * Check if a file is a chapter title page (章扉)
+ */
+function isChapterTitleFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.includes('章扉') || 
+         lower.includes('-title.md') ||
+         lower.includes('扉页') ||
+         lower.includes('-portada') ||
+         lower.includes('장표지');
+}
+
+/**
+ * Sort files for EPUB: preface first, colophon last, bibliography before colophon
+ */
+function sortFilesForEpub(files: EditorFile[]): EditorFile[] {
+  const preface: EditorFile[] = [];
+  const colophon: EditorFile[] = [];
+  const bibliography: EditorFile[] = [];
+  const regular: EditorFile[] = [];
+  
+  for (const file of files) {
+    if (isPrefaceFile(file.name)) {
+      preface.push(file);
+    } else if (isColophonFile(file.name)) {
+      colophon.push(file);
+    } else if (isBibliographyFile(file.name)) {
+      bibliography.push(file);
+    } else {
+      regular.push(file);
+    }
+  }
+  
+  // Order: preface -> regular -> bibliography -> colophon
+  return [...preface, ...regular, ...bibliography, ...colophon];
+}
+
+/**
  * Generate EPUB file from files and metadata
  */
 export async function generateEpub(
@@ -120,6 +184,9 @@ export async function generateEpub(
   onProgress?: (status: string) => void
 ): Promise<void> {
   onProgress?.('Generating EPUB...');
+  
+  // Sort files: preface first, colophon last
+  const sortedFiles = sortFilesForEpub(files);
   
   const zip = new JSZip();
   
@@ -133,7 +200,6 @@ export async function generateEpub(
   // Process chapters
   const manifestItems: EpubManifestItem[] = [];
   const spineItems: EpubSpineItem[] = [];
-  const tocItems: EpubTocItem[] = [];
   
   const oebps = zip.folder('OEBPS');
   
@@ -203,18 +269,75 @@ export async function generateEpub(
     spineItems.push({ idref: 'cover' });
   }
   
-  for (let idx = 0; idx < files.length; idx++) {
-    const file = files[idx];
+  // Collect all headings first for TOC page generation
+  const tocDepth = metadata.tocDepth ?? 2;
+  const allTocItems: EpubTocItem[] = [];
+  
+  // Only generate TOC if tocDepth > 0
+  if (tocDepth > 0) {
+    for (let idx = 0; idx < sortedFiles.length; idx++) {
+      const file = sortedFiles[idx];
+      const chapterFilename = `chapter${idx}.xhtml`;
+      const headings = extractHeadings(file.content, tocDepth);
+      
+      if (headings.length > 0) {
+        const chapterItem: EpubTocItem = {
+          title: headings[0].title,
+          href: `${chapterFilename}#${headings[0].id}`,
+          level: 1,
+          children: headings.slice(1).map(h => ({
+            title: h.title,
+            href: `${chapterFilename}#${h.id}`,
+            level: h.level,
+          })),
+        };
+        allTocItems.push(chapterItem);
+      } else {
+        allTocItems.push({
+          title: file.name.replace(/\.md$/, ''),
+          href: chapterFilename,
+          level: 1,
+        });
+      }
+    }
+    
+    // Create TOC page (本文内目次ページ)
+    const tocTitle = getTocTitle(metadata.language);
+    const tocPageXhtml = generateTocPageXhtml(allTocItems, tocTitle, 'styles/theme.css');
+    oebps?.file('toc-page.xhtml', tocPageXhtml);
+    
+    manifestItems.push({
+      id: 'toc-page',
+      href: 'toc-page.xhtml',
+      mediaType: 'application/xhtml+xml',
+    });
+    
+    spineItems.push({ idref: 'toc-page' });
+  }
+  
+  // Collect all mermaid images for EPUB
+  const allMermaidImages: MermaidImageData[] = [];
+  
+  for (let idx = 0; idx < sortedFiles.length; idx++) {
+    const file = sortedFiles[idx];
     const id = `chapter${idx}`;
     const filename = `${id}.xhtml`;
     
     onProgress?.(`Processing ${file.name}...`);
     
-    // Generate XHTML with external CSS reference
-    const xhtml = await convertToXhtml(file.content, file.name, {
+    // Determine body class based on file type
+    const bodyClass = isColophonFile(file.name) ? 'colophon' : undefined;
+    
+    // Generate XHTML with external CSS reference and PNG mermaid diagrams
+    const { xhtml, mermaidImages } = await convertToXhtml(file.content, file.name, {
       stylesheetHref: 'styles/theme.css',
+      mermaidAsPng: true,  // Use PNG for EPUB compatibility
+      bodyClass,
     });
     oebps?.file(filename, xhtml);
+    
+    // Collect mermaid images
+    allMermaidImages.push(...mermaidImages);
     
     manifestItems.push({
       id,
@@ -223,8 +346,29 @@ export async function generateEpub(
     });
     
     spineItems.push({ idref: id });
-    tocItems.push({ title: file.name.replace(/\.md$/, ''), href: filename });
   }
+  
+  // Add mermaid images to EPUB
+  const imagesFolder = oebps?.folder('images');
+  for (const mermaidImg of allMermaidImages) {
+    // Convert base64 to ArrayBuffer
+    const binaryString = atob(mermaidImg.base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    imagesFolder?.file(`${mermaidImg.id}.png`, bytes.buffer);
+    
+    manifestItems.push({
+      id: mermaidImg.id,
+      href: `images/${mermaidImg.id}.png`,
+      mediaType: 'image/png',
+    });
+  }
+  
+  // Use allTocItems for nav.xhtml and toc.ncx
+  const tocItems = allTocItems;
   
   // Generate UUID
   const uuid = 'urn:uuid:' + crypto.randomUUID();
@@ -233,13 +377,23 @@ export async function generateEpub(
   const contentOpf = generateContentOpf(metadata, uuid, manifestItems, spineItems, !!coverImage);
   oebps?.file('content.opf', contentOpf);
   
-  // Create toc.ncx
-  const tocNcx = generateTocNcx(metadata, uuid, tocItems);
-  oebps?.file('toc.ncx', tocNcx);
-  
-  // Create nav.xhtml (with theme CSS)
-  const navXhtml = generateNavXhtml(tocItems, 'styles/theme.css');
-  oebps?.file('nav.xhtml', navXhtml);
+  // Create toc.ncx and nav.xhtml
+  if (tocDepth > 0) {
+    const tocNcx = generateTocNcx(metadata, uuid, tocItems);
+    oebps?.file('toc.ncx', tocNcx);
+    
+    // Create nav.xhtml (with theme CSS and localized title)
+    const navXhtml = generateNavXhtml(tocItems, 'styles/theme.css', metadata.language);
+    oebps?.file('nav.xhtml', navXhtml);
+  } else {
+    // Minimal nav.xhtml for EPUB3 compliance (required even without TOC)
+    const minimalNavXhtml = generateMinimalNavXhtml(metadata.language);
+    oebps?.file('nav.xhtml', minimalNavXhtml);
+    
+    // Minimal toc.ncx
+    const minimalTocNcx = generateMinimalTocNcx(metadata, uuid);
+    oebps?.file('toc.ncx', minimalTocNcx);
+  }
   
   // Generate and save
   onProgress?.('Finalizing EPUB...');
@@ -295,25 +449,36 @@ ${spineXml}
 }
 
 /**
- * Generate toc.ncx XML
+ * Generate toc.ncx XML (hierarchical)
  */
 function generateTocNcx(
   metadata: BookMetadata,
   uuid: string,
   tocItems: EpubTocItem[]
 ): string {
-  const navPoints = tocItems
-    .map((item, idx) => `    <navPoint id="navpoint-${idx + 1}" playOrder="${idx + 1}">
-      <navLabel><text>${escapeXml(item.title)}</text></navLabel>
-      <content src="${item.href}"/>
-    </navPoint>`)
-    .join('\n');
+  let playOrder = 0;
+  
+  function generateNavPoints(items: EpubTocItem[], indent: string = '    '): string {
+    return items.map(item => {
+      playOrder++;
+      const childNavPoints = item.children && item.children.length > 0
+        ? `\n${generateNavPoints(item.children, indent + '  ')}\n${indent}`
+        : '';
+      return `${indent}<navPoint id="navpoint-${playOrder}" playOrder="${playOrder}">
+${indent}  <navLabel><text>${escapeXml(item.title)}</text></navLabel>
+${indent}  <content src="${item.href}"/>${childNavPoints}
+${indent}</navPoint>`;
+    }).join('\n');
+  }
+  
+  const navPoints = generateNavPoints(tocItems);
+  const maxDepth = getMaxDepth(tocItems);
   
   return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${uuid}"/>
-    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:depth" content="${maxDepth}"/>
     <meta name="dtb:totalPageCount" content="0"/>
     <meta name="dtb:maxPageNumber" content="0"/>
   </head>
@@ -325,12 +490,103 @@ ${navPoints}
 }
 
 /**
- * Generate nav.xhtml
+ * Get maximum depth of TOC tree
  */
-function generateNavXhtml(tocItems: EpubTocItem[], stylesheetHref?: string): string {
-  const navItems = tocItems
-    .map(item => `        <li><a href="${item.href}">${escapeXml(item.title)}</a></li>`)
-    .join('\n');
+function getMaxDepth(items: EpubTocItem[], currentDepth: number = 1): number {
+  let maxDepth = currentDepth;
+  for (const item of items) {
+    if (item.children && item.children.length > 0) {
+      const childDepth = getMaxDepth(item.children, currentDepth + 1);
+      if (childDepth > maxDepth) {
+        maxDepth = childDepth;
+      }
+    }
+  }
+  return maxDepth;
+}
+
+/**
+ * Generate nav.xhtml (hierarchical)
+ */
+function generateNavXhtml(tocItems: EpubTocItem[], stylesheetHref?: string, language?: string): string {
+  function generateNavItems(items: EpubTocItem[], indent: string = '        '): string {
+    return items.map(item => {
+      const hasChildren = item.children && item.children.length > 0;
+      if (hasChildren) {
+        return `${indent}<li>
+${indent}  <a href="${item.href}">${escapeXml(item.title)}</a>
+${indent}  <ol>
+${generateNavItems(item.children!, indent + '    ')}
+${indent}  </ol>
+${indent}</li>`;
+      } else {
+        return `${indent}<li><a href="${item.href}">${escapeXml(item.title)}</a></li>`;
+      }
+    }).join('\n');
+  }
+  
+  const navItems = generateNavItems(tocItems);
+  
+  const styleLink = stylesheetHref 
+    ? `\n  <link rel="stylesheet" type="text/css" href="${stylesheetHref}"/>`
+    : '';
+  
+  // Localized TOC title
+  const tocTitle = getTocTitle(language);
+  
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${tocTitle}</title>${styleLink}
+</head>
+<body>
+  <nav epub:type="toc">
+    <h1>${tocTitle}</h1>
+    <ol>
+${navItems}
+    </ol>
+  </nav>
+</body>
+</html>`;
+}
+
+/**
+ * Get localized TOC title
+ */
+function getTocTitle(language?: string): string {
+  const titles: Record<string, string> = {
+    en: 'Table of Contents',
+    ja: '目次',
+    zh: '目录',
+    es: 'Índice',
+    ko: '목차',
+  };
+  return titles[language || 'en'] || titles.en;
+}
+
+/**
+ * Generate TOC page XHTML (本文内目次ページ)
+ */
+function generateTocPageXhtml(tocItems: EpubTocItem[], title: string, stylesheetHref?: string): string {
+  function generateTocList(items: EpubTocItem[], indent: string = '    '): string {
+    return items.map(item => {
+      const hasChildren = item.children && item.children.length > 0;
+      if (hasChildren) {
+        return `${indent}<li>
+${indent}  <a href="${item.href}">${escapeXml(item.title)}</a>
+${indent}  <ol>
+${generateTocList(item.children!, indent + '    ')}
+${indent}  </ol>
+${indent}</li>`;
+      } else {
+        return `${indent}<li><a href="${item.href}">${escapeXml(item.title)}</a></li>`;
+      }
+    }).join('\n');
+  }
+  
+  const tocList = generateTocList(tocItems);
   
   const styleLink = stylesheetHref 
     ? `\n  <link rel="stylesheet" type="text/css" href="${stylesheetHref}"/>`
@@ -341,17 +597,70 @@ function generateNavXhtml(tocItems: EpubTocItem[], stylesheetHref?: string): str
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head>
   <meta charset="UTF-8"/>
-  <title>Table of Contents</title>${styleLink}
+  <title>${escapeXml(title)}</title>${styleLink}
+  <style>
+    .toc-page { margin: 1em 5%; }
+    .toc-page h1 { text-align: center; margin-bottom: 1.5em; }
+    .toc-page ol { list-style-type: none; padding-left: 0; }
+    .toc-page ol ol { padding-left: 1.5em; margin-top: 0.3em; }
+    .toc-page li { margin: 0.5em 0; }
+    .toc-page a { text-decoration: none; color: inherit; }
+  </style>
+</head>
+<body>
+  <section class="toc-page" epub:type="toc">
+    <h1>${escapeXml(title)}</h1>
+    <ol>
+${tocList}
+    </ol>
+  </section>
+</body>
+</html>`;
+}
+
+/**
+ * Generate minimal nav.xhtml (for EPUB3 compliance when TOC is disabled)
+ */
+function generateMinimalNavXhtml(language?: string): string {
+  const tocTitle = getTocTitle(language);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${tocTitle}</title>
 </head>
 <body>
   <nav epub:type="toc">
-    <h1>Table of Contents</h1>
+    <h1>${tocTitle}</h1>
     <ol>
-${navItems}
+      <li><a href="chapter0.xhtml">Start</a></li>
     </ol>
   </nav>
 </body>
 </html>`;
+}
+
+/**
+ * Generate minimal toc.ncx (for EPUB2 compatibility when TOC is disabled)
+ */
+function generateMinimalTocNcx(metadata: BookMetadata, uuid: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${uuid}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${escapeXml(metadata.title)}</text></docTitle>
+  <navMap>
+    <navPoint id="navpoint-1" playOrder="1">
+      <navLabel><text>Start</text></navLabel>
+      <content src="chapter0.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>`;
 }
 
 /**
@@ -364,6 +673,85 @@ function escapeXml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+/**
+ * Heading info for TOC
+ */
+interface HeadingInfo {
+  title: string;
+  level: number;
+  id: string;
+}
+
+/**
+ * Extract headings from Markdown content
+ * Handles chapter title pages with HTML wrappers
+ */
+function extractHeadings(content: string, maxDepth: number = 2): HeadingInfo[] {
+  const headings: HeadingInfo[] = [];
+  const lines = content.split('\n');
+  
+  // Track used IDs to ensure uniqueness
+  const usedIds = new Map<string, number>();
+  
+  // Check if this is a chapter title page (has chapter-title-page div)
+  const isChapterTitle = content.includes('class="chapter-title-page"');
+  
+  for (const line of lines) {
+    // Match ATX headings (# style)
+    const match = line.match(/^(#{1,6})\s+(.+)$/);
+    if (match) {
+      const level = match[1].length;
+      if (level <= maxDepth) {
+        let title = match[2].trim();
+        // Remove trailing # if present
+        title = title.replace(/\s+#+\s*$/, '');
+        
+        // Generate ID from title
+        let id = generateHeadingId(title);
+        
+        // Ensure ID uniqueness
+        const count = usedIds.get(id) || 0;
+        if (count > 0) {
+          id = `${id}-${count}`;
+        }
+        usedIds.set(id.replace(/-\d+$/, ''), count + 1);
+        
+        headings.push({ title, level, id });
+      }
+    }
+  }
+  
+  // For chapter title pages, combine H1 and H2 into a single meaningful title
+  // e.g., "第1章" + "データ構造の基礎" -> "第1章 データ構造の基礎"
+  if (isChapterTitle && headings.length >= 2) {
+    const h1 = headings.find(h => h.level === 1);
+    const h2 = headings.find(h => h.level === 2);
+    if (h1 && h2) {
+      // Create combined title for TOC
+      h1.title = `${h1.title} ${h2.title}`;
+      // Remove the H2 from headings to avoid duplication in TOC
+      const h2Index = headings.indexOf(h2);
+      if (h2Index > -1) {
+        headings.splice(h2Index, 1);
+      }
+    }
+  }
+  
+  return headings;
+}
+
+/**
+ * Generate heading ID from title (same logic as markdown.ts)
+ */
+function generateHeadingId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\s-]/g, '') // Keep alphanumeric, Japanese, spaces, hyphens
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '') // Trim leading/trailing hyphens
+    || 'heading';
 }
 
 /**
