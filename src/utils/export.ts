@@ -1,6 +1,7 @@
 import type { EditorFile, BookMetadata, EpubManifestItem, EpubSpineItem, EpubTocItem, ProjectImage } from '../types';
 import { convertToXhtml, processTablesInMarkdown, renderMermaidToSvg, parseMarkdown } from './markdown';
 import { EPUB_CONTAINER_XML, EPUB_MIMETYPE } from '../constants';
+import { getThemeCss, DEFAULT_THEME_ID, type ThemeId } from '../themes';
 
 // Declare external libraries (loaded via CDN)
 interface JSZipFolder {
@@ -136,6 +137,22 @@ export async function generateEpub(
   
   const oebps = zip.folder('OEBPS');
   
+  // Get theme CSS and add to EPUB
+  // If custom theme is selected and customCss exists, use it; otherwise use preset theme
+  const themeId = (metadata.themeId || DEFAULT_THEME_ID) as ThemeId;
+  const themeCss = (themeId === 'custom' && metadata.customCss) 
+    ? metadata.customCss 
+    : getThemeCss(themeId);
+  const stylesFolder = oebps?.folder('styles');
+  stylesFolder?.file('theme.css', themeCss);
+  
+  // Add CSS to manifest
+  manifestItems.push({
+    id: 'theme-css',
+    href: 'styles/theme.css',
+    mediaType: 'text/css',
+  });
+  
   // Find cover image
   const coverImage = metadata.coverImageId 
     ? images.find(img => img.id === metadata.coverImageId)
@@ -157,13 +174,14 @@ export async function generateEpub(
       mediaType: coverImage.mimeType,
     });
     
-    // Create cover page XHTML
+    // Create cover page XHTML (with theme CSS reference)
     const coverXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head>
   <meta charset="UTF-8"/>
   <title>Cover</title>
+  <link rel="stylesheet" type="text/css" href="styles/theme.css"/>
   <style>
     body { margin: 0; padding: 0; text-align: center; }
     img { max-width: 100%; max-height: 100%; }
@@ -192,7 +210,10 @@ export async function generateEpub(
     
     onProgress?.(`Processing ${file.name}...`);
     
-    const xhtml = await convertToXhtml(file.content, file.name);
+    // Generate XHTML with external CSS reference
+    const xhtml = await convertToXhtml(file.content, file.name, {
+      stylesheetHref: 'styles/theme.css',
+    });
     oebps?.file(filename, xhtml);
     
     manifestItems.push({
@@ -216,8 +237,8 @@ export async function generateEpub(
   const tocNcx = generateTocNcx(metadata, uuid, tocItems);
   oebps?.file('toc.ncx', tocNcx);
   
-  // Create nav.xhtml
-  const navXhtml = generateNavXhtml(tocItems);
+  // Create nav.xhtml (with theme CSS)
+  const navXhtml = generateNavXhtml(tocItems, 'styles/theme.css');
   oebps?.file('nav.xhtml', navXhtml);
   
   // Generate and save
@@ -306,17 +327,21 @@ ${navPoints}
 /**
  * Generate nav.xhtml
  */
-function generateNavXhtml(tocItems: EpubTocItem[]): string {
+function generateNavXhtml(tocItems: EpubTocItem[], stylesheetHref?: string): string {
   const navItems = tocItems
     .map(item => `        <li><a href="${item.href}">${escapeXml(item.title)}</a></li>`)
     .join('\n');
+  
+  const styleLink = stylesheetHref 
+    ? `\n  <link rel="stylesheet" type="text/css" href="${stylesheetHref}"/>`
+    : '';
   
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head>
   <meta charset="UTF-8"/>
-  <title>Table of Contents</title>
+  <title>Table of Contents</title>${styleLink}
 </head>
 <body>
   <nav epub:type="toc">

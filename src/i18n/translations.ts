@@ -32,6 +32,16 @@ export interface TranslationStrings {
   uiLanguage: string;
   coverImage: string;
   noCover: string;
+  theme: string;
+  themeClassic: string;
+  themeModern: string;
+  themeTechnical: string;
+  themeNovel: string;
+  themeAcademic: string;
+  themeCustom: string;
+  importCss: string;
+  exportCss: string;
+  customCssLoaded: string;
   
   // Import Modal
   importFromUrl: string;
@@ -155,6 +165,16 @@ export const en: TranslationStrings = {
   uiLanguage: 'UI Language',
   coverImage: 'Cover Image',
   noCover: 'No Cover',
+  theme: 'Theme',
+  themeClassic: 'Classic',
+  themeModern: 'Modern',
+  themeTechnical: 'Technical',
+  themeNovel: 'Novel',
+  themeAcademic: 'Academic',
+  themeCustom: 'Custom',
+  importCss: 'Import CSS',
+  exportCss: 'Export CSS',
+  customCssLoaded: 'Custom CSS loaded',
   
   // Import Modal
   importFromUrl: 'Import from URL',
@@ -278,6 +298,16 @@ export const ja: TranslationStrings = {
   uiLanguage: 'UI言語',
   coverImage: '表紙画像',
   noCover: '表紙なし',
+  theme: 'テーマ',
+  themeClassic: 'クラシック',
+  themeModern: 'モダン',
+  themeTechnical: 'テクニカル',
+  themeNovel: '小説',
+  themeAcademic: 'アカデミック',
+  themeCustom: 'カスタム',
+  importCss: 'CSSインポート',
+  exportCss: 'CSSエクスポート',
+  customCssLoaded: 'カスタムCSS読込完了',
   
   // Import Modal
   importFromUrl: 'URLからインポート',
@@ -401,6 +431,16 @@ export const zh: TranslationStrings = {
   uiLanguage: 'UI语言',
   coverImage: '封面图片',
   noCover: '无封面',
+  theme: '主题',
+  themeClassic: '经典',
+  themeModern: '现代',
+  themeTechnical: '技术',
+  themeNovel: '小说',
+  themeAcademic: '学术',
+  themeCustom: '自定义',
+  importCss: '导入CSS',
+  exportCss: '导出CSS',
+  customCssLoaded: '自定义CSS已加载',
   
   // Import Modal
   importFromUrl: '从URL导入',
@@ -524,6 +564,16 @@ export const es: TranslationStrings = {
   uiLanguage: 'Idioma de UI',
   coverImage: 'Imagen de portada',
   noCover: 'Sin portada',
+  theme: 'Tema',
+  themeClassic: 'Clásico',
+  themeModern: 'Moderno',
+  themeTechnical: 'Técnico',
+  themeNovel: 'Novela',
+  themeAcademic: 'Académico',
+  themeCustom: 'Personalizado',
+  importCss: 'Importar CSS',
+  exportCss: 'Exportar CSS',
+  customCssLoaded: 'CSS personalizado cargado',
   
   // Import Modal
   importFromUrl: 'Importar desde URL',
@@ -647,6 +697,16 @@ export const ko: TranslationStrings = {
   uiLanguage: 'UI 언어',
   coverImage: '표지 이미지',
   noCover: '표지 없음',
+  theme: '테마',
+  themeClassic: '클래식',
+  themeModern: '모던',
+  themeTechnical: '테크니컬',
+  themeNovel: '소설',
+  themeAcademic: '학술',
+  themeCustom: '사용자 정의',
+  importCss: 'CSS 가져오기',
+  exportCss: 'CSS 내보내기',
+  customCssLoaded: '사용자 정의 CSS 로드됨',
   
   // Import Modal
   importFromUrl: 'URL에서 가져오기',

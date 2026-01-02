@@ -2,6 +2,8 @@
 
 This tutorial will guide you through the basic usage of MDebook, a browser-based Markdown eBook editor.
 
+**Version: 0.4.0**
+
 **👉 [Launch MDebook](https://fukuyori.github.io/mdebook/dist/mdebook.html)**
 
 ## Table of Contents
@@ -11,9 +13,10 @@ This tutorial will guide you through the basic usage of MDebook, a browser-based
 3. [VIM Mode](#vim-mode)
 4. [Managing Files](#managing-files)
 5. [Working with Images](#working-with-images)
-6. [Import & Export](#import--export)
-7. [Project Management](#project-management)
-8. [Tips & Tricks](#tips--tricks)
+6. [EPUB Themes](#epub-themes)
+7. [Import & Export](#import--export)
+8. [Project Management](#project-management)
+9. [Tips & Tricks](#tips--tricks)
 
 ---
 
@@ -34,7 +37,7 @@ The editor will load with a sample document.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  MDebook v0.3    [Toolbar Icons]              [Language ▼]  │
+│  MDebook v0.4    [Toolbar Icons]              [Language ▼]  │
 ├─────────┬───────────────────────┬───────────────────────────┤
 │         │                       │                           │
 │  File   │      Editor           │      Preview              │
@@ -247,6 +250,77 @@ The status bar shows the current VIM mode:
 
 ---
 
+## EPUB Themes
+
+MDebook v0.4.0 introduces a theme system for EPUB exports.
+
+### Preset Themes
+
+| Theme | Description | Best For |
+|-------|-------------|----------|
+| **Classic** | Traditional serif design with subtle borders | Literature, general books |
+| **Modern** | Clean sans-serif with blue accents | Business books |
+| **Technical** | O'Reilly-style with dark red headings and code emphasis | Technical documentation |
+| **Novel** | Reading-optimized with scene breaks (Yu Mincho font) | Fiction |
+| **Academic** | Scholarly style with justified text | Academic papers |
+
+### Selecting a Theme
+
+1. Click the gear icon to open Settings
+2. Find the **Theme** dropdown
+3. Select your preferred theme
+4. Theme is applied when exporting to EPUB
+
+### Using Custom CSS
+
+**Exporting a theme (as starting point):**
+1. Select a theme from the dropdown
+2. Click the **↓ CSS** button
+3. A CSS file (e.g., `theme-technical.css`) is downloaded
+
+**Importing custom CSS:**
+1. Edit your CSS file
+2. Click the **↑ CSS** button
+3. Select your CSS file
+4. Theme automatically switches to "Custom"
+5. "Custom ✓" indicates custom CSS is loaded
+
+### Theme Guidelines (Kindle-compliant)
+
+All preset themes follow Amazon Kindle Publishing Guidelines:
+
+| Property | Recommendation | Notes |
+|----------|----------------|-------|
+| Body font-size | 1em | Required default |
+| line-height | Not specified | Respects user settings |
+| Heading sizes | 1.0em - 1.3em | Conservative sizing |
+| Margins | Percentage-based | e.g., `margin-left: 5%` |
+| text-align | Explicit | Prevents justify issues |
+
+### Technical Theme Features
+
+The Technical theme (O'Reilly-style) includes:
+
+```css
+/* Chapter headings - bottom border */
+h1 { font-size: 1.3em; border-bottom: 1px solid #333; }
+
+/* Section headings - dark red accent */
+h2 { font-size: 1.2em; color: #8e0012; }
+
+/* Item headings - gray background */
+h4 { background-color: #f0f0f0; padding: 0.3em 1%; }
+
+/* Code blocks - light gray */
+pre { background-color: #f7f7f7; border: 1px solid #dcdcdc; }
+
+/* Tables - academic style (top/bottom borders only) */
+th, td { border-top: 1px solid #9d9d9d; border-bottom: 1px solid #9d9d9d; }
+th { background-color: #f1f6fc; }
+```
+
+---
+
 ## Import & Export
 
 ### Export Formats
@@ -255,6 +329,7 @@ The status bar shows the current VIM mode:
 - Standard eBook format
 - Compatible with Kindle, Apple Books, etc.
 - Supports cover image (set in Settings panel)
+- Applies selected theme
 - Click Export → EPUB
 
 **PDF**
@@ -325,6 +400,7 @@ Click the gear icon to access:
 - **Author**: Author name
 - **Language**: Book language (for EPUB metadata)
 - **Cover Image**: Select from project images (for EPUB)
+- **Theme**: Select EPUB theme or use custom CSS
 
 ---
 
@@ -356,7 +432,8 @@ https://example.com/document.md
 2. **Reorder freely**: Drag tabs to reorganize structure
 3. **Use VIM**: Master `:w` and `:e` for quick file operations
 4. **Preview often**: Toggle preview to check formatting
-5. **Export early**: Test EPUB export to catch issues
+5. **Choose theme early**: Select appropriate EPUB theme before writing
+6. **Export early**: Test EPUB export to catch issues
 
 ### Best Practices
 
@@ -364,6 +441,7 @@ https://example.com/document.md
 - Keep images reasonably sized for eBook compatibility
 - Save regularly with `:w`
 - Use `.mdebook` format for projects with images
+- Export CSS to customize themes
 
 ---
 
@@ -388,6 +466,12 @@ https://example.com/document.md
 
 - Press `Esc` multiple times to ensure you're in NORMAL mode
 - Check the mode indicator in the status bar
+
+### Theme Not Applied
+
+- Themes only apply to EPUB export, not the preview pane
+- Check that you've selected a theme in Settings
+- For custom CSS, ensure the file was loaded (shows "Custom ✓")
 
 ---
 

@@ -175,7 +175,10 @@ export function processTablesInMarkdown(content: string): string {
  */
 export async function convertToXhtml(
   markdown: string,
-  title: string
+  title: string,
+  options?: {
+    stylesheetHref?: string;  // External CSS file reference
+  }
 ): Promise<string> {
   // Process mermaid blocks first
   const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
@@ -207,14 +210,10 @@ export async function convertToXhtml(
   // Parse to HTML
   let html = parseMarkdown(processedMarkdown);
   
-  // Wrap in XHTML document
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${escapeHtml(title)}</title>
-  <style>
+  // Style section: use external CSS if provided, otherwise use inline styles
+  const styleSection = options?.stylesheetHref
+    ? `<link rel="stylesheet" type="text/css" href="${options.stylesheetHref}"/>`
+    : `<style>
     body { font-family: serif; line-height: 1.6; margin: 2em; }
     h1, h2, h3 { margin-top: 1.5em; }
     code { font-family: monospace; background: #f4f4f4; padding: 0.2em 0.4em; }
@@ -225,7 +224,16 @@ export async function convertToXhtml(
     th { background: #f4f4f4; }
     .mermaid { text-align: center; margin: 1em 0; }
     .footnotes { font-size: 0.9em; border-top: 1px solid #ccc; margin-top: 2em; padding-top: 1em; }
-  </style>
+  </style>`;
+  
+  // Wrap in XHTML document
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${escapeHtml(title)}</title>
+  ${styleSection}
 </head>
 <body>
 ${html}

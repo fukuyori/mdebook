@@ -35,6 +35,8 @@ export interface BookMetadata {
   author: string;
   language: BookLanguage;
   coverImageId?: string;
+  themeId?: string;
+  customCss?: string;  // Custom CSS content for EPUB
 }
 
 /**

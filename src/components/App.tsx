@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { UILanguage, EditorFile, BookMetadata, ExportFormat, ProjectImage } from '../types';
 import { getTranslations, getSampleMarkdown, getSavedLanguage, saveLanguage, LANGUAGE_NAMES, SUPPORTED_LANGUAGES } from '../i18n/translations';
 import { VERSION } from '../constants';
+import { PRESET_THEMES, DEFAULT_THEME_ID, getThemeCss, type ThemeId } from '../themes';
 import { 
   generateEpub, 
   generatePdf, 
@@ -1153,6 +1154,68 @@ export const App: React.FC = () => {
                   <option key={img.id} value={img.id}>{img.name}</option>
                 ))}
               </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-sm">{t.theme}:</span>
+              <select
+                value={metadata.themeId || DEFAULT_THEME_ID}
+                onChange={(e) => setMetadata(prev => ({ ...prev, themeId: e.target.value as ThemeId }))}
+                className={`px-2 py-1 rounded text-sm ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'} border`}
+              >
+                {PRESET_THEMES.map(theme => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.id === 'classic' ? t.themeClassic :
+                     theme.id === 'modern' ? t.themeModern :
+                     theme.id === 'technical' ? t.themeTechnical :
+                     theme.id === 'novel' ? t.themeNovel :
+                     theme.id === 'academic' ? t.themeAcademic :
+                     theme.name}
+                  </option>
+                ))}
+                <option value="custom">{t.themeCustom}{metadata.customCss ? ' ✓' : ''}</option>
+              </select>
+              {/* CSS Import button */}
+              <button
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.css,text/css';
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      const text = await file.text();
+                      setMetadata(prev => ({ ...prev, customCss: text, themeId: 'custom' }));
+                      setExportStatus(t.customCssLoaded);
+                      setTimeout(() => setExportStatus(''), 2000);
+                    }
+                  };
+                  input.click();
+                }}
+                className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                title={t.importCss}
+              >
+                ↑ CSS
+              </button>
+              {/* CSS Export button */}
+              <button
+                onClick={() => {
+                  const themeId = (metadata.themeId || DEFAULT_THEME_ID) as ThemeId;
+                  const css = themeId === 'custom' && metadata.customCss 
+                    ? metadata.customCss 
+                    : getThemeCss(themeId);
+                  const blob = new Blob([css], { type: 'text/css' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `theme-${themeId}.css`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                title={t.exportCss}
+              >
+                ↓ CSS
+              </button>
             </label>
           </div>
         </div>
