@@ -23,6 +23,10 @@ import {
   addImageFromFile,
   createImageObjectUrl,
   filterReferencedImages,
+  // mdvim format support
+  loadMdvimFile,
+  exportToMdvim,
+  isMdvimFile,
   // Storage utilities
   generateSessionId,
   generateProjectId,
@@ -762,7 +766,7 @@ export const App: React.FC = () => {
   const handleImportFromFiles = useCallback(async () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.md,.txt,.markdown,.mdebook';
+    input.accept = '.md,.txt,.markdown,.mdebook,.mdvim';
     input.multiple = true;
     
     input.onchange = async (e) => {
@@ -797,6 +801,31 @@ export const App: React.FC = () => {
             }
           } catch (error) {
             console.error('Failed to import project:', error);
+          }
+        } else if (isMdvimFile(file.name)) {
+          // Import from mdvim file
+          try {
+            const buffer = await file.arrayBuffer();
+            const projectData = await loadMdvimFile(buffer, file.name);
+            if (projectData) {
+              // Add files with new IDs
+              for (const f of projectData.files) {
+                importedFiles.push({
+                  id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                  name: f.name,
+                  content: f.content,
+                });
+              }
+              // Add images with new IDs
+              for (const img of projectData.images) {
+                importedImages.push({
+                  ...img,
+                  id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Failed to import mdvim file:', error);
           }
         } else {
           // Import markdown file
@@ -860,6 +889,55 @@ export const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to open project:', error);
+      }
+      return;
+    }
+    
+    // Check if any .mdvim file is dropped - if so, import it
+    const mdvimFile = droppedFiles.find(f => isMdvimFile(f.name));
+    if (mdvimFile) {
+      try {
+        const buffer = await mdvimFile.arrayBuffer();
+        const projectData = await loadMdvimFile(buffer, mdvimFile.name);
+        if (projectData) {
+          // Import as new file(s) in current project
+          const importedFiles: EditorFile[] = [];
+          const importedImages: ProjectImage[] = [];
+          
+          for (const f of projectData.files) {
+            importedFiles.push({
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+              name: f.name,
+              content: f.content,
+            });
+          }
+          for (const img of projectData.images) {
+            importedImages.push({
+              ...img,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            });
+          }
+          
+          if (importedFiles.length > 0) {
+            setFiles(prev => {
+              const activeIndex = prev.findIndex(f => f.id === activeFileId);
+              const insertIndex = activeIndex >= 0 ? activeIndex + 1 : prev.length;
+              const newFiles = [...prev];
+              newFiles.splice(insertIndex, 0, ...importedFiles);
+              return newFiles;
+            });
+            setActiveFileId(importedFiles[0].id);
+          }
+          if (importedImages.length > 0) {
+            setImages(prev => [...prev, ...importedImages]);
+          }
+          
+          setExportStatus(t.filesImported);
+          setTimeout(() => setExportStatus(''), 2000);
+          focusEditor();
+        }
+      } catch (error) {
+        console.error('Failed to import mdvim file:', error);
       }
       return;
     }
@@ -1087,12 +1165,22 @@ export const App: React.FC = () => {
         case 'markdown':
           await exportMarkdownZip(files, metadata, images, setExportStatus);
           break;
+        case 'mdvim':
+          // Export current file as mdvim
+          if (activeFile) {
+            setExportStatus(t.generating);
+            const blob = await exportToMdvim(activeFile, metadata, images);
+            const filename = `${activeFile.name || 'document'}.mdvim`;
+            saveFileFallback(blob, filename);
+            setExportStatus(t.generationComplete);
+          }
+          break;
       }
     } catch (error) {
       setExportStatus(`${t.error}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     setTimeout(() => setExportStatus(''), 3000);
-  }, [files, metadata, isDark, images, t.error]);
+  }, [files, metadata, isDark, images, activeFile, t.error, t.generating, t.generationComplete]);
   
   // PDF Font handlers
   const handlePdfFontUpload = useCallback(async (fontType: 'regular' | 'bold', file: File) => {
@@ -1209,6 +1297,9 @@ export const App: React.FC = () => {
               </button>
               <button onClick={() => { handleExport('markdown'); focusEditor(); }} className={`block w-full px-4 py-2 text-left text-sm ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
                 {t.exportMarkdown}
+              </button>
+              <button onClick={() => { handleExport('mdvim'); focusEditor(); }} className={`block w-full px-4 py-2 text-left text-sm ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                mdvim ({t.currentFile})
               </button>
             </div>
           </div>

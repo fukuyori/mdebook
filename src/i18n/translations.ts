@@ -18,6 +18,7 @@ export interface TranslationStrings {
   importUrl: string;
   export: string;
   exportMarkdown: string;
+  currentFile: string;
   settings: string;
   lightMode: string;
   darkMode: string;
@@ -181,6 +182,7 @@ export const en: TranslationStrings = {
   importUrl: 'Import from URL',
   export: 'Export',
   exportMarkdown: 'Markdown (ZIP)',
+  currentFile: 'Current File',
   settings: 'Settings',
   lightMode: 'Light Mode',
   darkMode: 'Dark Mode',
@@ -344,6 +346,7 @@ export const ja: TranslationStrings = {
   importUrl: 'URLからインポート',
   export: 'エクスポート',
   exportMarkdown: 'Markdown (ZIP)',
+  currentFile: '現在のファイル',
   settings: '設定',
   lightMode: 'ライトモード',
   darkMode: 'ダークモード',
@@ -507,6 +510,7 @@ export const zh: TranslationStrings = {
   importUrl: '从URL导入',
   export: '导出',
   exportMarkdown: 'Markdown (ZIP)',
+  currentFile: '当前文件',
   settings: '设置',
   lightMode: '浅色模式',
   darkMode: '深色模式',
@@ -670,6 +674,7 @@ export const es: TranslationStrings = {
   importUrl: 'Importar desde URL',
   export: 'Exportar',
   exportMarkdown: 'Markdown (ZIP)',
+  currentFile: 'Archivo actual',
   settings: 'Configuración',
   lightMode: 'Modo claro',
   darkMode: 'Modo oscuro',
@@ -833,6 +838,7 @@ export const ko: TranslationStrings = {
   importUrl: 'URL에서 가져오기',
   export: '내보내기',
   exportMarkdown: 'Markdown (ZIP)',
+  currentFile: '현재 파일',
   settings: '설정',
   lightMode: '라이트 모드',
   darkMode: '다크 모드',

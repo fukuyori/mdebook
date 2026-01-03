@@ -65,7 +65,7 @@ export interface ProjectManifest {
 /**
  * Export format types
  */
-export type ExportFormat = 'epub' | 'pdf' | 'html' | 'markdown';
+export type ExportFormat = 'epub' | 'pdf' | 'html' | 'markdown' | 'mdvim';
 
 /**
  * Application state

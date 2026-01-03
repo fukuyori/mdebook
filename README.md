@@ -2,7 +2,7 @@
 
 A browser-based Markdown eBook editor with VIM keybindings, multi-language support, and export to EPUB/PDF/HTML/Markdown.
 
-**Version: 0.4.5**
+**Version: 0.8.1**
 
 **[🇯🇵 日本語版はこちら](README.ja.md)**
 
@@ -19,7 +19,7 @@ A browser-based Markdown eBook editor with VIM keybindings, multi-language suppo
 - **Import**: Local files, URLs (Qiita, GitHub auto-conversion)
 - **Project Format**: `.mdebook` (ZIP-based) for saving/loading projects with images
 
-### PDF Export (New in v0.4.5)
+### PDF Export (New in v0.8.1)
 - **Japanese Font Support** - Upload custom TTF/OTF fonts (stored in IndexedDB)
 - **Table of Contents** - Auto-generated with internal links
 - **Page Numbers** - Header with title, footer with page numbers
@@ -289,6 +289,8 @@ project.mdebook (ZIP)
     └── cover.png
 ```
 
+📄 **[File Format Specification](docs/FILE_FORMAT.md)** - Detailed technical documentation
+
 ## 🌐 Browser Compatibility
 
 | Browser | Support |
@@ -300,6 +302,17 @@ project.mdebook (ZIP)
 **Note**: IndexedDB (for font storage) may be restricted in `file://` protocol on some browsers. Use a local server or Chrome for best results.
 
 ## 📝 Changelog
+
+### v0.4.7
+- **mdvim Format Support**:
+  - Import `.mdvim` files (drag & drop or file picker)
+  - Export current file as `.mdvim` format
+  - Automatic image extraction and embedding
+  - Metadata preservation (title, author, language)
+
+### v0.4.6
+- **Documentation**:
+  - Added file format specification (FILE_FORMAT.md)
 
 ### v0.4.5
 - **VIM Mode Stability Fix**:

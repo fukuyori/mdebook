@@ -1,7 +1,7 @@
 /**
  * Project file operations (ZIP-based .mdebook format)
  */
-import type { EditorFile, BookMetadata, UILanguage, ProjectImage, ProjectManifest, ProjectData } from '../types';
+import type { EditorFile, BookMetadata, UILanguage, BookLanguage, ProjectImage, ProjectManifest, ProjectData } from '../types';
 
 // Declare JSZip (loaded via CDN)
 declare const JSZip: {
@@ -326,9 +326,10 @@ export async function openFileWithFSA(): Promise<{ handle: FileSystemFileHandle;
     const [handle] = await showOpenFilePicker({
       types: [
         {
-          description: 'MDebook Project or Markdown',
+          description: 'MDebook Project, mdvim, or Markdown',
           accept: {
             'application/x-mdebook': ['.mdebook'],
+            'application/x-mdvim': ['.mdvim'],
             'text/markdown': ['.md'],
           },
         },
@@ -337,11 +338,15 @@ export async function openFileWithFSA(): Promise<{ handle: FileSystemFileHandle;
     
     const file = await handle.getFile();
     const isProject = file.name.endsWith('.mdebook');
+    const isMdvim = file.name.toLowerCase().endsWith('.mdvim');
     
     let data: ProjectData | null;
     if (isProject) {
       const buffer = await file.arrayBuffer();
       data = await loadProjectFromZip(buffer);
+    } else if (isMdvim) {
+      const buffer = await file.arrayBuffer();
+      data = await loadMdvimFile(buffer, file.name);
     } else {
       const content = await file.text();
       data = loadSingleMarkdown(content, file.name);
@@ -366,7 +371,7 @@ export function openFileFallback(): Promise<ProjectData | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.mdebook,.md';
+    input.accept = '.mdebook,.mdvim,.md';
     
     input.onchange = async (e) => {
       const target = e.target as HTMLInputElement;
@@ -377,11 +382,16 @@ export function openFileFallback(): Promise<ProjectData | null> {
       }
       
       const isProject = file.name.endsWith('.mdebook');
+      const isMdvim = file.name.toLowerCase().endsWith('.mdvim');
       
       try {
         if (isProject) {
           const buffer = await file.arrayBuffer();
           const data = await loadProjectFromZip(buffer);
+          resolve(data);
+        } else if (isMdvim) {
+          const buffer = await file.arrayBuffer();
+          const data = await loadMdvimFile(buffer, file.name);
           resolve(data);
         } else {
           const content = await file.text();
@@ -545,4 +555,177 @@ export function createImageObjectUrl(image: ProjectImage): string {
  */
 export function revokeImageObjectUrl(url: string): void {
   URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// mdvim Format Support
+// ============================================================================
+
+/**
+ * mdvim manifest format
+ */
+interface MdvimManifest {
+  version: string;
+  app: 'mdvim';
+  created: string;
+  metadata?: {
+    title?: string;
+    author?: string;
+    language?: string;
+  };
+  content?: string;
+  images?: string[];
+}
+
+/**
+ * Load mdvim file and convert to MDebook format
+ * @param data - ArrayBuffer of the .mdvim file
+ * @param filename - Original filename for fallback title
+ * @returns ProjectData or null if failed
+ */
+export async function loadMdvimFile(data: ArrayBuffer, filename: string): Promise<ProjectData | null> {
+  try {
+    const zip = await JSZip.loadAsync(data);
+    
+    // Read manifest.json
+    const manifestFile = zip.files['manifest.json'];
+    let manifest: MdvimManifest | null = null;
+    
+    if (manifestFile) {
+      const manifestStr = await manifestFile.async('string');
+      manifest = JSON.parse(manifestStr);
+    }
+    
+    // Determine content file name
+    const contentFileName = manifest?.content || 'content.md';
+    
+    // Read content
+    const contentFile = zip.files[contentFileName];
+    if (!contentFile) {
+      console.error(`Content file not found: ${contentFileName}`);
+      return null;
+    }
+    const content = await contentFile.async('string');
+    
+    // Extract metadata
+    const title = manifest?.metadata?.title || filename.replace(/\.mdvim$/, '');
+    const author = manifest?.metadata?.author || '';
+    const language = (manifest?.metadata?.language as BookLanguage) || 'ja';
+    
+    // Read images
+    const images: ProjectImage[] = [];
+    const imageNames = manifest?.images || [];
+    
+    // If manifest doesn't list images, scan the images/ folder
+    if (imageNames.length === 0) {
+      for (const [path, entry] of Object.entries(zip.files)) {
+        if (path.startsWith('images/') && !entry.dir) {
+          const name = path.replace('images/', '');
+          if (name) imageNames.push(name);
+        }
+      }
+    }
+    
+    // Load each image
+    for (const imageName of imageNames) {
+      const imagePath = `images/${imageName}`;
+      const imageFile = zip.files[imagePath];
+      if (imageFile && !imageFile.dir) {
+        const imageData = await imageFile.async('arraybuffer');
+        images.push({
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+          name: imageName,
+          data: imageData,
+          mimeType: getMimeType(imageName),
+        });
+      }
+    }
+    
+    // Create single file from content
+    const files: EditorFile[] = [{
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      name: title,
+      content,
+    }];
+    
+    return {
+      version: manifest?.version || '0.8.0',
+      files,
+      metadata: {
+        title,
+        author,
+        language,
+      },
+      uiLang: language as UILanguage,
+      images,
+    };
+  } catch (error) {
+    console.error('Failed to load mdvim file:', error);
+    return null;
+  }
+}
+
+/**
+ * Export single chapter to mdvim format
+ * @param file - The chapter to export
+ * @param metadata - Book metadata
+ * @param allImages - All project images
+ * @returns Blob of the .mdvim file
+ */
+export async function exportToMdvim(
+  file: EditorFile,
+  metadata: BookMetadata,
+  allImages: ProjectImage[]
+): Promise<Blob> {
+  const zip = new JSZip();
+  
+  // Find images referenced in this file
+  const referencedImageNames = new Set<string>();
+  const imageRegex = /!\[[^\]]*\]\(images\/([^)\s]+)\)/g;
+  let match;
+  while ((match = imageRegex.exec(file.content)) !== null) {
+    referencedImageNames.add(match[1]);
+  }
+  
+  // Filter to only referenced images
+  const images = allImages.filter(img => referencedImageNames.has(img.name));
+  
+  // Create manifest
+  const manifest: MdvimManifest = {
+    version: '0.8.1',
+    app: 'mdvim',
+    created: new Date().toISOString(),
+    metadata: {
+      title: file.name || metadata.title,
+      author: metadata.author,
+      language: metadata.language,
+    },
+    content: 'content.md',
+    images: images.map(img => img.name),
+  };
+  
+  // Add manifest
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+  
+  // Add content
+  zip.file('content.md', file.content);
+  
+  // Add images
+  const imagesFolder = zip.folder('images');
+  if (imagesFolder) {
+    for (const img of images) {
+      imagesFolder.file(img.name, img.data, { binary: true });
+    }
+  }
+  
+  // Generate ZIP
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  return blob as Blob;
+}
+
+/**
+ * Check if file is mdvim format
+ */
+export function isMdvimFile(filename: string): boolean {
+  return filename.toLowerCase().endsWith('.mdvim');
 }
