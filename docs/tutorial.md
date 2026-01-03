@@ -2,7 +2,7 @@
 
 This tutorial will guide you through the basic usage of MDebook, a browser-based Markdown eBook editor.
 
-**Version: 0.4.4**
+**Version: 0.4.5**
 
 **👉 [Launch MDebook](https://fukuyori.github.io/mdebook/dist/mdebook.html)**
 
@@ -39,7 +39,7 @@ The editor will load with a sample document.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  MDebook v0.4.4  [Toolbar Icons]              [Language ▼]  │
+│  MDebook v0.4.5  [Toolbar Icons]              [Language ▼]  │
 ├─────────┬───────────────────────┬───────────────────────────┤
 │         │                       │                           │
 │  File   │      Editor           │      Preview              │
@@ -377,7 +377,7 @@ pre code { font-size: inherit; }
 
 ## PDF Export
 
-MDebook v0.4.4 features native PDF generation with pdfmake.
+MDebook v0.4.5 features native PDF generation with pdfmake.
 
 ### Japanese Font Setup
 

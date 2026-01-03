@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine } from '@codemirror/view';
-import { EditorState, Extension } from '@codemirror/state';
+import { EditorState, Extension, Compartment } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { vim, getCM, Vim } from '@replit/codemirror-vim';
 import type { VimMode, EditorPosition } from '../types';
+
+// Compartments for dynamic reconfiguration
+const themeCompartment = new Compartment();
+const fontCompartment = new Compartment();
 
 // Light theme
 const lightTheme = EditorView.theme({
@@ -245,7 +249,36 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
     return modeMap[mode.toLowerCase()] || 'NORMAL';
   };
 
-  // Create extensions based on props
+  // Refs for callbacks used in extensions (to avoid recreating extensions)
+  const onChangeRef = useRef(onChange);
+  const onCursorChangeRef2 = useRef(onCursorChange);
+  const onScrollRef = useRef(onScroll);
+  
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onCursorChangeRef2.current = onCursorChange;
+    onScrollRef.current = onScroll;
+  }, [onChange, onCursorChange, onScroll]);
+  
+  // Create font theme
+  const createFontTheme = useCallback(() => {
+    return EditorView.theme({
+      '&': {
+        fontSize: `${fontSize}px`,
+        height: '100%',
+      },
+      '.cm-scroller': {
+        overflow: 'auto',
+        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+        lineHeight: '1.6',
+      },
+      '.cm-content': {
+        padding: '8px 0',
+      },
+    });
+  }, [fontSize]);
+  
+  // Create extensions based on props - memoized to prevent unnecessary recreations
   const createExtensions = useCallback((): Extension[] => {
     const extensions: Extension[] = [
       lineNumbers(),
@@ -267,27 +300,14 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
       ]),
       markdown(),
       EditorView.lineWrapping,
-      EditorView.theme({
-        '&': {
-          fontSize: `${fontSize}px`,
-          height: '100%',
-        },
-        '.cm-scroller': {
-          overflow: 'auto',
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-          lineHeight: '1.6',
-        },
-        '.cm-content': {
-          padding: '8px 0',
-        },
-      }),
-      // Theme
-      isDark ? oneDark : lightTheme,
+      // Use compartments for dynamic reconfiguration
+      fontCompartment.of(createFontTheme()),
+      themeCompartment.of(isDark ? oneDark : lightTheme),
       // Update listener for content changes
       EditorView.updateListener.of((update) => {
         if (update.docChanged && !isUpdatingRef.current) {
           const newValue = update.state.doc.toString();
-          onChange(newValue);
+          onChangeRef.current(newValue);
         }
         
         // Update cursor position
@@ -298,7 +318,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
           column: pos - line.from + 1,
         };
         setCursorPosition(newPos);
-        onCursorChange?.(newPos);
+        onCursorChangeRef2.current?.(newPos);
       }),
       // Scroll event handler
       EditorView.domEventHandlers({
@@ -311,7 +331,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
           
           if (scrollHeight > 0) {
             const ratio = scrollTop / scrollHeight;
-            onScroll?.(ratio);
+            onScrollRef.current?.(ratio);
           }
         },
         paste: (event) => {
@@ -373,9 +393,9 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
     }
 
     return extensions;
-  }, [isDark, vimEnabled, fontSize, onChange, onCursorChange, onScroll]);
+  }, [vimEnabled, isDark, createFontTheme]); // Only recreate when vim or initial theme changes
 
-  // Initialize editor
+  // Initialize editor - only recreate when vimEnabled changes
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -398,8 +418,9 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
 
     // Set up VIM event listeners
     if (vimEnabled) {
-      // getCM might return null immediately after view creation
-      // Try with a small delay to allow VIM extension to initialize
+      let listenerSetupAttempts = 0;
+      const maxAttempts = 5;
+      
       const setupVimListeners = () => {
         const cm = getCM(view);
         if (cm) {
@@ -414,33 +435,48 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
           cm.on('vim-command-update', (command: string) => {
             setVimCommand(command);
           });
+          return true;
         }
+        return false;
       };
       
       // Try immediately
-      setupVimListeners();
-      
-      // Also try with delay in case VIM extension needs time to initialize
-      setTimeout(setupVimListeners, 100);
+      if (!setupVimListeners()) {
+        // Retry with increasing delay if VIM extension needs time to initialize
+        const retrySetup = () => {
+          listenerSetupAttempts++;
+          if (listenerSetupAttempts < maxAttempts && !setupVimListeners()) {
+            setTimeout(retrySetup, 50 * listenerSetupAttempts);
+          }
+        };
+        setTimeout(retrySetup, 50);
+      }
     }
 
     return () => {
       view.destroy();
       editorRef.current = null;
     };
-  }, [vimEnabled]); // Recreate when vimEnabled changes
+  }, [vimEnabled]); // Only recreate when vimEnabled changes
 
-  // Update extensions when theme or fontSize changes
+  // Update theme when isDark changes - use compartment reconfigure
   useEffect(() => {
     if (!editorRef.current) return;
-
-    const newState = EditorState.create({
-      doc: editorRef.current.state.doc,
-      extensions: createExtensions(),
+    
+    // Use compartment reconfigure - this preserves VIM state and cursor position
+    editorRef.current.dispatch({
+      effects: themeCompartment.reconfigure(isDark ? oneDark : lightTheme),
     });
-
-    editorRef.current.setState(newState);
-  }, [isDark, fontSize, createExtensions]);
+  }, [isDark]);
+  
+  // Update font size when fontSize changes - use compartment reconfigure
+  useEffect(() => {
+    if (!editorRef.current) return;
+    
+    editorRef.current.dispatch({
+      effects: fontCompartment.reconfigure(createFontTheme()),
+    });
+  }, [fontSize, createFontTheme]);
 
   // Update content when value prop changes
   useEffect(() => {
