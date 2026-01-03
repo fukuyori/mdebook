@@ -303,12 +303,13 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
-### v0.4.7
+### v0.4.8
 - **mdvim Format Support**:
-  - Import `.mdvim` files (drag & drop or file picker)
+  - Import `.mdvim` files (drag & drop, file picker, or Open dialog)
   - Export current file as `.mdvim` format
   - Automatic image extraction and embedding
   - Metadata preservation (title, author, language)
+  - Duplicate file/image name handling (adds suffix like "filename (1)")
 
 ### v0.4.6
 - **Documentation**:

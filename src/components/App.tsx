@@ -836,18 +836,53 @@ export const App: React.FC = () => {
       }
       
       if (importedFiles.length > 0) {
-        // Insert after currently active file
+        // Insert after currently active file, with duplicate name handling
         setFiles(prev => {
+          const existingNames = new Set(prev.map(f => f.name));
+          const renamedFiles = importedFiles.map(f => {
+            let newName = f.name;
+            let counter = 1;
+            while (existingNames.has(newName)) {
+              // Add suffix like "filename (1)", "filename (2)", etc.
+              newName = `${f.name} (${counter})`;
+              counter++;
+            }
+            existingNames.add(newName); // Track newly added names too
+            return { ...f, name: newName };
+          });
+          
           const activeIndex = prev.findIndex(f => f.id === activeFileId);
           const insertIndex = activeIndex >= 0 ? activeIndex + 1 : prev.length;
           const newFiles = [...prev];
-          newFiles.splice(insertIndex, 0, ...importedFiles);
+          newFiles.splice(insertIndex, 0, ...renamedFiles);
           return newFiles;
         });
         setActiveFileId(importedFiles[0].id);
       }
       if (importedImages.length > 0) {
-        setImages(prev => [...prev, ...importedImages]);
+        // Add images with duplicate name handling
+        setImages(prev => {
+          const existingNames = new Set(prev.map(img => img.name));
+          const renamedImages = importedImages.map(img => {
+            let newName = img.name;
+            let counter = 1;
+            while (existingNames.has(newName)) {
+              // Add suffix before extension like "image (1).png"
+              const lastDot = img.name.lastIndexOf('.');
+              if (lastDot > 0) {
+                const baseName = img.name.substring(0, lastDot);
+                const ext = img.name.substring(lastDot);
+                newName = `${baseName} (${counter})${ext}`;
+              } else {
+                newName = `${img.name} (${counter})`;
+              }
+              counter++;
+            }
+            existingNames.add(newName);
+            return { ...img, name: newName };
+          });
+          return [...prev, ...renamedImages];
+        });
       }
       
       if (importedFiles.length > 0 || importedImages.length > 0) {
@@ -920,16 +955,48 @@ export const App: React.FC = () => {
           
           if (importedFiles.length > 0) {
             setFiles(prev => {
+              const existingNames = new Set(prev.map(f => f.name));
+              const renamedFiles = importedFiles.map(f => {
+                let newName = f.name;
+                let counter = 1;
+                while (existingNames.has(newName)) {
+                  newName = `${f.name} (${counter})`;
+                  counter++;
+                }
+                existingNames.add(newName);
+                return { ...f, name: newName };
+              });
+              
               const activeIndex = prev.findIndex(f => f.id === activeFileId);
               const insertIndex = activeIndex >= 0 ? activeIndex + 1 : prev.length;
               const newFiles = [...prev];
-              newFiles.splice(insertIndex, 0, ...importedFiles);
+              newFiles.splice(insertIndex, 0, ...renamedFiles);
               return newFiles;
             });
             setActiveFileId(importedFiles[0].id);
           }
           if (importedImages.length > 0) {
-            setImages(prev => [...prev, ...importedImages]);
+            setImages(prev => {
+              const existingNames = new Set(prev.map(img => img.name));
+              const renamedImages = importedImages.map(img => {
+                let newName = img.name;
+                let counter = 1;
+                while (existingNames.has(newName)) {
+                  const lastDot = img.name.lastIndexOf('.');
+                  if (lastDot > 0) {
+                    const baseName = img.name.substring(0, lastDot);
+                    const ext = img.name.substring(lastDot);
+                    newName = `${baseName} (${counter})${ext}`;
+                  } else {
+                    newName = `${img.name} (${counter})`;
+                  }
+                  counter++;
+                }
+                existingNames.add(newName);
+                return { ...img, name: newName };
+              });
+              return [...prev, ...renamedImages];
+            });
           }
           
           setExportStatus(t.filesImported);
