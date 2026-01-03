@@ -2,7 +2,7 @@
 
 A browser-based Markdown eBook editor with VIM keybindings, multi-language support, and export to EPUB/PDF/HTML/Markdown.
 
-**Version: 0.4.3**
+**Version: 0.4.4**
 
 **[🇯🇵 日本語版はこちら](README.ja.md)**
 
@@ -15,9 +15,19 @@ A browser-based Markdown eBook editor with VIM keybindings, multi-language suppo
 - **Multi-file Support** - Manage multiple chapters with drag-and-drop reordering
 
 ### Import & Export
-- **Export Formats**: EPUB, PDF, HTML, Markdown (ZIP)
+- **Export Formats**: EPUB, PDF (pdfmake), HTML, Markdown (ZIP)
 - **Import**: Local files, URLs (Qiita, GitHub auto-conversion)
 - **Project Format**: `.mdebook` (ZIP-based) for saving/loading projects with images
+
+### PDF Export (New in v0.4.4)
+- **Japanese Font Support** - Upload custom TTF/OTF fonts (stored in IndexedDB)
+- **Table of Contents** - Auto-generated with internal links
+- **Page Numbers** - Header with title, footer with page numbers
+- **Theme CSS Support** - Line height, letter spacing from EPUB theme
+- **Tables, Links, Formatting** - Full Markdown support
+- **Chapter Title Pages** - Combined TOC entry (e.g., "Chapter 1 Introduction")
+- **Colophon** - Special formatting for publication info
+- **Emoji Handling** - Auto-removed in PDF (preserved in EPUB/HTML)
 
 ### EPUB Themes
 - **5 Preset Themes**: Classic, Modern, Technical, Novel, Academic
@@ -91,6 +101,42 @@ node build-html.cjs
 - [Tutorial (English)](docs/tutorial.md)
 - [チュートリアル (日本語)](docs/tutorial.ja.md)
 
+## 📄 PDF Export
+
+### Japanese Font Setup
+
+1. Download fonts from [Google Fonts - Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
+2. Open Settings (gear icon)
+3. Scroll to "PDF Font Settings"
+4. Upload Regular font (required) and Bold font (optional)
+5. Fonts are stored in IndexedDB (persists across sessions)
+
+### PDF Features
+
+| Feature | Support |
+|---------|---------|
+| Headings (h1-h4) | ✅ Styled with TOC links |
+| Tables | ✅ With borders and header styling |
+| Code blocks | ✅ Monospace with background |
+| Lists (ul/ol) | ✅ Nested supported |
+| Links | ✅ Clickable with underline |
+| Bold/Italic | ✅ Inline formatting |
+| Blockquotes | ✅ Indented with styling |
+| Horizontal rules | ✅ Gray line |
+| Chapter title pages | ✅ Combined TOC entry |
+| Colophon | ✅ Excluded from TOC |
+| Emojis | ⚠️ Auto-removed (font limitation) |
+| Images | ❌ Not supported |
+| Mermaid | ❌ Not supported |
+
+### TOC Depth Setting
+
+The TOC Depth setting affects both EPUB and PDF:
+- **0**: No table of contents
+- **1**: H1 only
+- **2**: H1 + H2 (default)
+- **3**: H1 + H2 + H3
+
 ## 🎨 EPUB Themes
 
 ### Preset Themes
@@ -103,7 +149,7 @@ node build-html.cjs
 | **Novel** | Reading-optimized with scene breaks | Fiction |
 | **Academic** | Scholarly style with justified text | Academic papers |
 
-### Kindle-Optimized CSS (v0.4.3)
+### Kindle-Optimized CSS
 
 All themes are optimized for Kindle devices:
 
@@ -113,9 +159,9 @@ html { font-size: 100%; }
 body {
   margin: 0;
   padding: 0;
-  line-height: 1.75;        /* Japanese-friendly line spacing */
-  text-align: justify;       /* Standard e-book alignment */
-  word-wrap: break-word;     /* Prevent long word overflow */
+  line-height: 1.7;           /* Readable line spacing */
+  text-align: justify;         /* Standard e-book alignment */
+  word-wrap: break-word;       /* Prevent long word overflow */
 }
 
 /* Headings */
@@ -149,6 +195,16 @@ Click "Add Template" to insert pre-formatted templates:
 | 📑 Chapter Title | `章扉N.md` | After current tab |
 | 📚 Bibliography | `bibliography.md` / `参考文献.md` | Before colophon (auto) |
 
+### Chapter Title Pages
+
+Chapter title pages are automatically detected and formatted:
+- In TOC: Combined as "第1章 章タイトル" format
+- In PDF: Centered title with optional epigraph
+
+Detection patterns:
+- `<div class="chapter-title-page">` wrapper
+- Or `# 第N章` followed by `## Subtitle`
+
 ### EPUB File Order
 Files are automatically sorted for EPUB export:
 1. Preface/Introduction
@@ -180,6 +236,9 @@ mdebook/
 ├── src/
 │   ├── components/     # React components
 │   ├── utils/          # Utility functions
+│   │   ├── export.ts   # EPUB/HTML export
+│   │   ├── pdf-export.ts # PDF export (pdfmake)
+│   │   └── storage.ts  # IndexedDB operations
 │   ├── i18n/           # Translations
 │   ├── types/          # TypeScript types
 │   ├── hooks/          # React hooks
@@ -195,7 +254,7 @@ mdebook/
 - **Editor**: CodeMirror 6 with @replit/codemirror-vim
 - **Styling**: Tailwind CSS
 - **Build**: Vite
-- **Export**: JSZip, FileSaver.js, Mermaid
+- **Export**: JSZip, FileSaver.js, Mermaid, pdfmake
 
 ## 📦 Export Formats
 
@@ -203,7 +262,7 @@ mdebook/
 Standard eBook format compatible with most e-readers. Supports cover image, custom themes, and Mermaid diagram conversion.
 
 ### PDF
-Opens browser print dialog for PDF generation.
+Native PDF generation with pdfmake. Supports Japanese fonts, tables, code blocks, and auto-generated TOC.
 
 ### HTML
 Standalone HTML file with embedded styles.
@@ -213,10 +272,21 @@ Standalone HTML file with embedded styles.
 book-markdown.zip
 ├── metadata.json
 ├── chapters/
-│   ├── 01-chapter1.md
-│   └── 02-chapter2.md
+│   ├── chapter1.md
+│   └── chapter2.md
 └── images/
     └── image1.png
+```
+
+### .mdebook Project Format
+```
+project.mdebook (ZIP)
+├── manifest.json
+├── chapters/
+│   ├── chapter1.md      # With .md extension
+│   └── chapter2.md
+└── images/
+    └── cover.png
 ```
 
 ## 🌐 Browser Compatibility
@@ -227,45 +297,56 @@ book-markdown.zip
 | Firefox | ✅ Supported (fallback file handling) |
 | Safari | ✅ Supported (fallback file handling) |
 
+**Note**: IndexedDB (for font storage) may be restricted in `file://` protocol on some browsers. Use a local server or Chrome for best results.
+
 ## 📝 Changelog
+
+### v0.4.4
+- **PDF Export Enhancement**:
+  - Full pdfmake integration with Japanese font support
+  - Upload custom TTF/OTF fonts (stored in IndexedDB)
+  - Table support with borders and header styling
+  - Links, italic, horizontal rules support
+  - Code blocks with background color and monospace font
+  - Theme CSS reflected (line height, letter spacing, text alignment)
+  - Auto emoji removal (fonts don't support emojis)
+  - Chapter title pages: Combined TOC entry (e.g., "第1章 章タイトル")
+  - Colophon: Special formatting, excluded from TOC
+- **EPUB Enhancement**:
+  - Chapter title pages: Combined TOC entry
+  - Code block headings excluded from TOC
+- **Project Format**:
+  - Markdown files saved with `.md` extension in `.mdebook`
+  - Tab display without extension
 
 ### v0.4.3
 - **Kindle-optimized CSS**: All 5 themes rewritten following Kindle Publishing Guidelines 2025
   - `html { font-size: 100%; }` for respecting user font settings
-  - `body { line-height: 1.75; text-align: justify; word-wrap: break-word; }`
+  - `body { line-height: 1.7; text-align: justify; word-wrap: break-word; }`
   - Headings: h1=1.6em, h2=1.3em, h3=1.1em with `page-break-before: always` on h1
-  - Code blocks: Separated `code` and `pre` definitions to prevent font-size accumulation in `<pre><code>` nesting
-- **Removed specific font-family declarations**: Uses generic families (`sans-serif`, `monospace`) for e-reader compatibility
-- **Structured CSS comments**: Organized sections (Base, Headings, Paragraphs, Lists, Code, Tables, Images)
+  - Code blocks: Separated `code` and `pre` definitions to prevent font-size accumulation
+- **Removed specific font-family declarations**: Uses generic families for e-reader compatibility
 
 ### v0.4.2
 - Chapter title page inserted after current active tab
-- Chapter title pages combined in TOC (e.g., "Chapter 1 Introduction")
-- Removed body font-size from all themes for better e-reader compatibility
+- Chapter title pages combined in TOC
+- Removed body font-size from all themes
 
 ### v0.4.1
 - Book structure templates: Colophon, Preface, Chapter Title Page, Bibliography
 - Admonition blocks (:::note, :::warning, :::tip, etc.)
-- Automatic file ordering for EPUB (preface first, colophon last)
+- Automatic file ordering for EPUB
 - Cover image persistence fix
-- Mermaid PNG conversion for EPUB compatibility
+- Mermaid PNG conversion for EPUB
 
 ### v0.4.0
-- Added 5 EPUB preset themes (Classic, Modern, Technical, Novel, Academic)
-- Custom CSS import/export for EPUB
+- Added 5 EPUB preset themes
+- Custom CSS import/export
 - Kindle Publishing Guidelines compliance
 - Hierarchical table of contents
 
-### v0.3.2
+### v0.3.x
 - EPUB cover image support
-- Tab rename bug fix
-- Version unification
-
-### v0.3.1
-- CORS proxy fallback
-- Drag-drop tab positioning
-
-### v0.3.0
 - .mdebook project format
 - Image management
 - URL/Qiita import
@@ -285,3 +366,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [Marked](https://marked.js.org/)
 - [Mermaid](https://mermaid.js.org/)
 - [JSZip](https://stuk.github.io/jszip/)
+- [pdfmake](http://pdfmake.org/)

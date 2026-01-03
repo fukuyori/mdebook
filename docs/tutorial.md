@@ -2,7 +2,7 @@
 
 This tutorial will guide you through the basic usage of MDebook, a browser-based Markdown eBook editor.
 
-**Version: 0.4.0**
+**Version: 0.4.4**
 
 **👉 [Launch MDebook](https://fukuyori.github.io/mdebook/dist/mdebook.html)**
 
@@ -13,10 +13,12 @@ This tutorial will guide you through the basic usage of MDebook, a browser-based
 3. [VIM Mode](#vim-mode)
 4. [Managing Files](#managing-files)
 5. [Working with Images](#working-with-images)
-6. [EPUB Themes](#epub-themes)
-7. [Import & Export](#import--export)
-8. [Project Management](#project-management)
-9. [Tips & Tricks](#tips--tricks)
+6. [Book Structure Templates](#book-structure-templates)
+7. [EPUB Themes](#epub-themes)
+8. [PDF Export](#pdf-export)
+9. [Import & Export](#import--export)
+10. [Project Management](#project-management)
+11. [Tips & Tricks](#tips--tricks)
 
 ---
 
@@ -37,7 +39,7 @@ The editor will load with a sample document.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  MDebook v0.4    [Toolbar Icons]              [Language ▼]  │
+│  MDebook v0.4.4  [Toolbar Icons]              [Language ▼]  │
 ├─────────┬───────────────────────┬───────────────────────────┤
 │         │                       │                           │
 │  File   │      Editor           │      Preview              │
@@ -105,6 +107,24 @@ graph LR
     B --> C[End]
 ​```
 ```
+
+### Admonitions (Callout Blocks)
+
+```markdown
+:::note
+This is a note.
+:::
+
+:::warning Warning Title
+This is a warning message.
+:::
+
+:::tip
+This is a helpful tip!
+:::
+```
+
+Supported types: `note`, `warning`, `tip`, `info`, `caution`, `important`
 
 ### Live Preview
 
@@ -250,9 +270,54 @@ The status bar shows the current VIM mode:
 
 ---
 
-## EPUB Themes
+## Book Structure Templates
 
-MDebook v0.4.0 introduces a theme system for EPUB exports.
+MDebook provides templates for common book elements.
+
+### Adding Templates
+
+1. Click **"+ Template"** button in the toolbar
+2. Select from available templates:
+   - 📋 Colophon (奥付)
+   - 📖 Preface (はじめに)
+   - 📑 Chapter Title Page (章扉)
+   - 📚 Bibliography (参考文献)
+
+### Template Types
+
+| Template | Description | Auto-Position |
+|----------|-------------|---------------|
+| **Colophon** | Publication info (title, author, date, copyright) | End of book |
+| **Preface** | Introduction/foreword | Beginning of book |
+| **Chapter Title Page** | Decorative chapter opener with epigraph | After current tab |
+| **Bibliography** | Reference list | Before colophon |
+
+### Chapter Title Page Format
+
+```markdown
+<div class="chapter-title-page">
+
+# Chapter 1
+
+## Chapter Title Here
+
+> "Optional quotation"
+> — Author Name
+
+</div>
+
+---
+
+<!-- Start your content here -->
+```
+
+**TOC Behavior:**
+- In EPUB/PDF table of contents: "Chapter 1 Chapter Title Here" (combined)
+- Original chapter number and subtitle displayed separately on the page
+
+---
+
+## EPUB Themes
 
 ### Preset Themes
 
@@ -260,8 +325,8 @@ MDebook v0.4.0 introduces a theme system for EPUB exports.
 |-------|-------------|----------|
 | **Classic** | Traditional serif design with subtle borders | Literature, general books |
 | **Modern** | Clean sans-serif with blue accents | Business books |
-| **Technical** | O'Reilly-style with dark red headings and code emphasis | Technical documentation |
-| **Novel** | Reading-optimized with scene breaks (Yu Mincho font) | Fiction |
+| **Technical** | O'Reilly-style with dark red headings | Technical documentation |
+| **Novel** | Reading-optimized with scene breaks | Fiction |
 | **Academic** | Scholarly style with justified text | Academic papers |
 
 ### Selecting a Theme
@@ -276,7 +341,7 @@ MDebook v0.4.0 introduces a theme system for EPUB exports.
 **Exporting a theme (as starting point):**
 1. Select a theme from the dropdown
 2. Click the **↓ CSS** button
-3. A CSS file (e.g., `theme-technical.css`) is downloaded
+3. A CSS file is downloaded
 
 **Importing custom CSS:**
 1. Edit your CSS file
@@ -285,39 +350,76 @@ MDebook v0.4.0 introduces a theme system for EPUB exports.
 4. Theme automatically switches to "Custom"
 5. "Custom ✓" indicates custom CSS is loaded
 
-### Theme Guidelines (Kindle-compliant)
+### Kindle-Optimized CSS
 
-All preset themes follow Amazon Kindle Publishing Guidelines:
-
-| Property | Recommendation | Notes |
-|----------|----------------|-------|
-| Body font-size | 1em | Required default |
-| line-height | Not specified | Respects user settings |
-| Heading sizes | 1.0em - 1.3em | Conservative sizing |
-| Margins | Percentage-based | e.g., `margin-left: 5%` |
-| text-align | Explicit | Prevents justify issues |
-
-### Technical Theme Features
-
-The Technical theme (O'Reilly-style) includes:
+All preset themes follow Amazon Kindle Publishing Guidelines 2025:
 
 ```css
-/* Chapter headings - bottom border */
-h1 { font-size: 1.3em; border-bottom: 1px solid #333; }
+html { font-size: 100%; }
+body {
+  margin: 0;
+  padding: 0;
+  line-height: 1.7;
+  text-align: justify;
+  word-wrap: break-word;
+}
 
-/* Section headings - dark red accent */
-h2 { font-size: 1.2em; color: #8e0012; }
+h1 { font-size: 1.6em; page-break-before: always; }
+h2 { font-size: 1.3em; }
+h3 { font-size: 1.1em; }
 
-/* Item headings - gray background */
-h4 { background-color: #f0f0f0; padding: 0.3em 1%; }
-
-/* Code blocks - light gray */
-pre { background-color: #f7f7f7; border: 1px solid #dcdcdc; }
-
-/* Tables - academic style (top/bottom borders only) */
-th, td { border-top: 1px solid #9d9d9d; border-bottom: 1px solid #9d9d9d; }
-th { background-color: #f1f6fc; }
+code { font-size: 0.9em; }
+pre { font-size: 0.9em; }
+pre code { font-size: inherit; }
 ```
+
+---
+
+## PDF Export
+
+MDebook v0.4.4 features native PDF generation with pdfmake.
+
+### Japanese Font Setup
+
+1. Download fonts from [Google Fonts - Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
+2. Open Settings (gear icon)
+3. Scroll to **"PDF Font Settings"**
+4. Upload Regular font (required) and Bold font (optional)
+5. Fonts are stored in IndexedDB (persists across sessions)
+
+### PDF Features
+
+| Feature | Support |
+|---------|---------|
+| Headings (h1-h4) | ✅ Styled with TOC links |
+| Tables | ✅ With borders and header styling |
+| Code blocks | ✅ Monospace with background |
+| Lists (ul/ol) | ✅ Nested supported |
+| Links | ✅ Clickable with underline |
+| Bold/Italic | ✅ Inline formatting |
+| Blockquotes | ✅ Indented with styling |
+| Horizontal rules | ✅ Gray line |
+| Chapter title pages | ✅ Combined TOC entry |
+| Colophon | ✅ Excluded from TOC |
+| Emojis | ⚠️ Auto-removed (font limitation) |
+| Images | ❌ Not supported |
+| Mermaid | ❌ Not supported |
+
+### TOC Depth Setting
+
+Controls table of contents depth for both EPUB and PDF:
+- **0**: No table of contents
+- **1**: H1 only
+- **2**: H1 + H2 (default)
+- **3**: H1 + H2 + H3
+
+### Theme CSS in PDF
+
+PDF export respects EPUB theme settings:
+- Line height
+- Letter spacing
+- Text alignment
+- Heading colors and sizes
 
 ---
 
@@ -330,11 +432,14 @@ th { background-color: #f1f6fc; }
 - Compatible with Kindle, Apple Books, etc.
 - Supports cover image (set in Settings panel)
 - Applies selected theme
+- Mermaid diagrams converted to PNG
 - Click Export → EPUB
 
 **PDF**
-- Opens browser print dialog
-- Use "Save as PDF" option
+- Native PDF with pdfmake
+- Japanese font support (upload in Settings)
+- Auto-generated TOC with links
+- Header with title, footer with page numbers
 - Click Export → PDF
 
 **HTML**
@@ -349,8 +454,8 @@ th { background-color: #f1f6fc; }
   book-markdown.zip
   ├── metadata.json
   ├── chapters/
-  │   ├── 01-chapter1.md
-  │   └── 02-chapter2.md
+  │   ├── chapter1.md
+  │   └── chapter2.md
   └── images/
       └── image.png
   ```
@@ -382,7 +487,7 @@ th { background-color: #f1f6fc; }
 
 **Project Format**
 - `.mdebook` files contain:
-  - All chapters (Markdown)
+  - All chapters (Markdown with .md extension)
   - Embedded images
   - Metadata (title, author, language)
   - UI settings
@@ -401,6 +506,8 @@ Click the gear icon to access:
 - **Language**: Book language (for EPUB metadata)
 - **Cover Image**: Select from project images (for EPUB)
 - **Theme**: Select EPUB theme or use custom CSS
+- **TOC Depth**: Table of contents depth (0-3)
+- **PDF Font Settings**: Upload Japanese fonts
 
 ---
 
@@ -429,11 +536,12 @@ https://example.com/document.md
 ### Efficient Workflow
 
 1. **Start with outline**: Create multiple files for chapters
-2. **Reorder freely**: Drag tabs to reorganize structure
-3. **Use VIM**: Master `:w` and `:e` for quick file operations
-4. **Preview often**: Toggle preview to check formatting
-5. **Choose theme early**: Select appropriate EPUB theme before writing
-6. **Export early**: Test EPUB export to catch issues
+2. **Use templates**: Add chapter title pages for professional look
+3. **Reorder freely**: Drag tabs to reorganize structure
+4. **Use VIM**: Master `:w` and `:e` for quick file operations
+5. **Preview often**: Toggle preview to check formatting
+6. **Choose theme early**: Select appropriate EPUB theme before writing
+7. **Test exports**: Export to EPUB/PDF early to catch issues
 
 ### Best Practices
 
@@ -442,6 +550,7 @@ https://example.com/document.md
 - Save regularly with `:w`
 - Use `.mdebook` format for projects with images
 - Export CSS to customize themes
+- Upload Japanese fonts before PDF export
 
 ---
 
@@ -469,9 +578,20 @@ https://example.com/document.md
 
 ### Theme Not Applied
 
-- Themes only apply to EPUB export, not the preview pane
+- Themes only apply to EPUB/PDF export, not the preview pane
 - Check that you've selected a theme in Settings
 - For custom CSS, ensure the file was loaded (shows "Custom ✓")
+
+### PDF Export Issues
+
+- **Japanese text not showing**: Upload fonts in Settings → PDF Font Settings
+- **Fonts not persisting**: Use Chrome for best IndexedDB support
+- **Emojis showing as boxes**: Emojis are auto-removed in PDF
+
+### IndexedDB Issues
+
+- `file://` protocol may restrict IndexedDB in some browsers
+- Use Chrome or run a local server for best results
 
 ---
 

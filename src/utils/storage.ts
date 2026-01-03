@@ -4,7 +4,7 @@
 import type { EditorFile, BookMetadata, UILanguage, ProjectImage } from '../types';
 
 const DB_NAME = 'mdebook';
-const DB_VERSION = 1;
+const DB_VERSION = 2;  // Updated for fonts store
 
 /**
  * Session data stored in IndexedDB
@@ -109,6 +109,11 @@ function openDatabase(): Promise<IDBDatabase> {
         const sessionsStore = db.createObjectStore('sessions', { keyPath: 'sessionId' });
         sessionsStore.createIndex('projectId', 'projectId', { unique: false });
         sessionsStore.createIndex('lastActive', 'lastActive', { unique: false });
+      }
+      
+      // Create fonts store (added in version 2)
+      if (!db.objectStoreNames.contains('fonts')) {
+        db.createObjectStore('fonts', { keyPath: 'id' });
       }
     };
   });
@@ -334,4 +339,135 @@ export async function cleanupOldSessions(daysOld: number = 7): Promise<void> {
   } catch (error) {
     console.error('Failed to cleanup old sessions:', error);
   }
+}
+
+// ============================================
+// PDF Font Storage
+// ============================================
+
+/**
+ * Font data stored in IndexedDB
+ */
+export interface StoredFont {
+  id: string;           // 'pdf-font-regular' | 'pdf-font-bold'
+  name: string;         // Original filename
+  data: string;         // Base64 encoded font data
+  mimeType: string;     // 'font/ttf' | 'font/otf'
+  uploadedAt: number;   // Timestamp
+}
+
+/**
+ * Save font to IndexedDB
+ */
+export async function savePdfFont(
+  fontType: 'regular' | 'bold',
+  file: File
+): Promise<void> {
+  try {
+    const db = await openDatabase();
+    
+    // Read file as Base64
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    
+    const transaction = db.transaction(['fonts'], 'readwrite');
+    const store = transaction.objectStore('fonts');
+    
+    const fontData: StoredFont = {
+      id: `pdf-font-${fontType}`,
+      name: file.name,
+      data,
+      mimeType: file.type || 'font/ttf',
+      uploadedAt: Date.now(),
+    };
+    
+    await new Promise<void>((resolve, reject) => {
+      const request = store.put(fontData);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    
+    db.close();
+    console.log(`Font saved: ${fontType} - ${file.name}`);
+  } catch (error) {
+    console.error('Failed to save font:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load font from IndexedDB
+ */
+export async function loadPdfFont(
+  fontType: 'regular' | 'bold'
+): Promise<StoredFont | null> {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['fonts'], 'readonly');
+    const store = transaction.objectStore('fonts');
+    
+    const result = await new Promise<StoredFont | null>((resolve, reject) => {
+      const request = store.get(`pdf-font-${fontType}`);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+    
+    db.close();
+    return result;
+  } catch (error) {
+    console.error('Failed to load font:', error);
+    return null;
+  }
+}
+
+/**
+ * Load both fonts from IndexedDB
+ */
+export async function loadPdfFonts(): Promise<{
+  regular: StoredFont | null;
+  bold: StoredFont | null;
+}> {
+  const [regular, bold] = await Promise.all([
+    loadPdfFont('regular'),
+    loadPdfFont('bold'),
+  ]);
+  return { regular, bold };
+}
+
+/**
+ * Delete font from IndexedDB
+ */
+export async function deletePdfFont(fontType: 'regular' | 'bold'): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction(['fonts'], 'readwrite');
+    const store = transaction.objectStore('fonts');
+    
+    await new Promise<void>((resolve, reject) => {
+      const request = store.delete(`pdf-font-${fontType}`);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    
+    db.close();
+  } catch (error) {
+    console.error('Failed to delete font:', error);
+  }
+}
+
+/**
+ * Check if PDF fonts are configured
+ */
+export async function hasPdfFonts(): Promise<boolean> {
+  const fonts = await loadPdfFonts();
+  return fonts.regular !== null;
 }

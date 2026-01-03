@@ -71,6 +71,18 @@ export interface TranslationStrings {
   fileSaved: string;
   imageAdded: string;
   
+  // PDF Font Settings
+  pdfFontSettings: string;
+  pdfFontDescription: string;
+  pdfFontRegular: string;
+  pdfFontBold: string;
+  pdfFontNotSet: string;
+  pdfFontUpload: string;
+  pdfFontDelete: string;
+  pdfFontDownloadHint: string;
+  pdfFontSaved: string;
+  pdfFontDeleted: string;
+  
   // Footer
   files: string;
   characters: string;
@@ -221,6 +233,18 @@ export const en: TranslationStrings = {
   fileOpened: 'File opened',
   fileSaved: 'File saved',
   imageAdded: 'Image added',
+  
+  // PDF Font Settings
+  pdfFontSettings: 'PDF Font Settings',
+  pdfFontDescription: 'Upload Japanese fonts (TTF/OTF) for PDF export. Fonts are saved locally.',
+  pdfFontRegular: 'Regular',
+  pdfFontBold: 'Bold',
+  pdfFontNotSet: 'Not set',
+  pdfFontUpload: 'Upload',
+  pdfFontDelete: 'Delete',
+  pdfFontDownloadHint: 'Download Noto Sans JP from Google Fonts',
+  pdfFontSaved: 'Font saved',
+  pdfFontDeleted: 'Font deleted',
   
   // Footer
   files: 'files',
@@ -373,6 +397,18 @@ export const ja: TranslationStrings = {
   fileSaved: 'ファイルを保存しました',
   imageAdded: '画像を追加しました',
   
+  // PDF Font Settings
+  pdfFontSettings: 'PDF用フォント設定',
+  pdfFontDescription: 'PDF出力用の日本語フォント（TTF/OTF）をアップロードしてください。フォントはローカルに保存されます。',
+  pdfFontRegular: '標準',
+  pdfFontBold: '太字',
+  pdfFontNotSet: '未設定',
+  pdfFontUpload: 'アップロード',
+  pdfFontDelete: '削除',
+  pdfFontDownloadHint: 'Google FontsからNoto Sans JPをダウンロード',
+  pdfFontSaved: 'フォントを保存しました',
+  pdfFontDeleted: 'フォントを削除しました',
+  
   // Footer
   files: 'ファイル',
   characters: '文字',
@@ -523,6 +559,18 @@ export const zh: TranslationStrings = {
   fileOpened: '文件已打开',
   fileSaved: '文件已保存',
   imageAdded: '图片已添加',
+  
+  // PDF Font Settings
+  pdfFontSettings: 'PDF字体设置',
+  pdfFontDescription: '上传日文/中文字体（TTF/OTF）用于PDF导出。字体保存在本地。',
+  pdfFontRegular: '常规',
+  pdfFontBold: '粗体',
+  pdfFontNotSet: '未设置',
+  pdfFontUpload: '上传',
+  pdfFontDelete: '删除',
+  pdfFontDownloadHint: '从Google Fonts下载Noto Sans',
+  pdfFontSaved: '字体已保存',
+  pdfFontDeleted: '字体已删除',
   
   // Footer
   files: '文件',
@@ -675,6 +723,18 @@ export const es: TranslationStrings = {
   fileSaved: 'Archivo guardado',
   imageAdded: 'Imagen agregada',
   
+  // PDF Font Settings
+  pdfFontSettings: 'Configuración de fuentes PDF',
+  pdfFontDescription: 'Suba fuentes (TTF/OTF) para la exportación PDF. Las fuentes se guardan localmente.',
+  pdfFontRegular: 'Normal',
+  pdfFontBold: 'Negrita',
+  pdfFontNotSet: 'No configurado',
+  pdfFontUpload: 'Subir',
+  pdfFontDelete: 'Eliminar',
+  pdfFontDownloadHint: 'Descargar Noto Sans de Google Fonts',
+  pdfFontSaved: 'Fuente guardada',
+  pdfFontDeleted: 'Fuente eliminada',
+  
   // Footer
   files: 'archivos',
   characters: 'caracteres',
@@ -825,6 +885,18 @@ export const ko: TranslationStrings = {
   fileOpened: '파일이 열렸습니다',
   fileSaved: '파일이 저장되었습니다',
   imageAdded: '이미지가 추가되었습니다',
+  
+  // PDF Font Settings
+  pdfFontSettings: 'PDF 글꼴 설정',
+  pdfFontDescription: 'PDF 내보내기용 글꼴(TTF/OTF)을 업로드하세요. 글꼴은 로컬에 저장됩니다.',
+  pdfFontRegular: '보통',
+  pdfFontBold: '굵게',
+  pdfFontNotSet: '설정되지 않음',
+  pdfFontUpload: '업로드',
+  pdfFontDelete: '삭제',
+  pdfFontDownloadHint: 'Google Fonts에서 Noto Sans 다운로드',
+  pdfFontSaved: '글꼴이 저장되었습니다',
+  pdfFontDeleted: '글꼴이 삭제되었습니다',
   
   // Footer
   files: '파일',

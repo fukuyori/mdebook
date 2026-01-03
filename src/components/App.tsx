@@ -31,6 +31,11 @@ import {
   getMostRecentSession,
   isProjectBeingEdited,
   cleanupOldSessions,
+  // PDF Font utilities
+  savePdfFont,
+  loadPdfFonts,
+  deletePdfFont,
+  type StoredFont,
 } from '../utils';
 import CodeMirrorEditor from './CodeMirrorEditor';
 import Preview from './Preview';
@@ -117,6 +122,11 @@ export const App: React.FC = () => {
   const [importUrl, setImportUrl] = useState('');
   const [importLoading, setImportLoading] = useState(false);
   
+  // PDF Font state
+  const [pdfFonts, setPdfFonts] = useState<{ regular: StoredFont | null; bold: StoredFont | null }>({ regular: null, bold: null });
+  const pdfFontRegularRef = useRef<HTMLInputElement>(null);
+  const pdfFontBoldRef = useRef<HTMLInputElement>(null);
+  
   // Scroll sync
   const scrollSourceRef = useRef<'editor' | 'preview' | null>(null);
   const editorScrollRef = useRef<((ratio: number) => void) | null>(null);
@@ -180,6 +190,14 @@ export const App: React.FC = () => {
             setActiveFileId(recentData.files[0]?.id || '1');
           }
         }
+      }
+      
+      // Load PDF fonts from IndexedDB
+      try {
+        const fonts = await loadPdfFonts();
+        setPdfFonts(fonts);
+      } catch (e) {
+        console.error('Failed to load PDF fonts:', e);
       }
       
       setIsInitialized(true);
@@ -1057,7 +1075,11 @@ export const App: React.FC = () => {
           await generateEpub(files, metadata, images, setExportStatus);
           break;
         case 'pdf':
-          await generatePdf(files, metadata, isDark, setExportStatus);
+          // Get theme CSS for PDF styling
+          const pdfThemeCss = metadata.themeId === 'custom' && metadata.customCss
+            ? metadata.customCss
+            : getThemeCss((metadata.themeId || DEFAULT_THEME_ID) as ThemeId);
+          await generatePdf(files, metadata, isDark, setExportStatus, pdfThemeCss);
           break;
         case 'html':
           await exportHtml(files, metadata, isDark, setExportStatus);
@@ -1071,6 +1093,32 @@ export const App: React.FC = () => {
     }
     setTimeout(() => setExportStatus(''), 3000);
   }, [files, metadata, isDark, images, t.error]);
+  
+  // PDF Font handlers
+  const handlePdfFontUpload = useCallback(async (fontType: 'regular' | 'bold', file: File) => {
+    try {
+      await savePdfFont(fontType, file);
+      const fonts = await loadPdfFonts();
+      setPdfFonts(fonts);
+      setExportStatus(t.pdfFontSaved);
+      setTimeout(() => setExportStatus(''), 3000);
+    } catch (error) {
+      console.error('Failed to save font:', error);
+      setExportStatus(`${t.error}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [t.pdfFontSaved, t.error]);
+  
+  const handlePdfFontDelete = useCallback(async (fontType: 'regular' | 'bold') => {
+    try {
+      await deletePdfFont(fontType);
+      const fonts = await loadPdfFonts();
+      setPdfFonts(fonts);
+      setExportStatus(t.pdfFontDeleted);
+      setTimeout(() => setExportStatus(''), 3000);
+    } catch (error) {
+      console.error('Failed to delete font:', error);
+    }
+  }, [t.pdfFontDeleted]);
   
   // Calculate total characters
   const totalChars = files.reduce((sum, f) => sum + f.content.length, 0);
@@ -1336,6 +1384,100 @@ export const App: React.FC = () => {
                 <option value={3}>h1-h3</option>
               </select>
             </label>
+          </div>
+          
+          {/* PDF Font Settings */}
+          <div className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+            <h4 className="text-sm font-bold mb-2">{t.pdfFontSettings}</h4>
+            <p className="text-xs opacity-70 mb-3">{t.pdfFontDescription}</p>
+            
+            {/* Regular font */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm w-16">{t.pdfFontRegular}:</span>
+              {pdfFonts.regular ? (
+                <>
+                  <span className="text-xs flex-1 truncate" title={pdfFonts.regular.name}>
+                    {pdfFonts.regular.name}
+                  </span>
+                  <button
+                    onClick={() => handlePdfFontDelete('regular')}
+                    className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'} text-white`}
+                  >
+                    {t.pdfFontDelete}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs opacity-50 flex-1">{t.pdfFontNotSet}</span>
+                  <input
+                    ref={pdfFontRegularRef}
+                    type="file"
+                    accept=".ttf,.otf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePdfFontUpload('regular', file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    onClick={() => pdfFontRegularRef.current?.click()}
+                    className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-blue-600 hover:bg-blue-500' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                  >
+                    {t.pdfFontUpload}
+                  </button>
+                </>
+              )}
+            </div>
+            
+            {/* Bold font */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm w-16">{t.pdfFontBold}:</span>
+              {pdfFonts.bold ? (
+                <>
+                  <span className="text-xs flex-1 truncate" title={pdfFonts.bold.name}>
+                    {pdfFonts.bold.name}
+                  </span>
+                  <button
+                    onClick={() => handlePdfFontDelete('bold')}
+                    className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-red-700 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'} text-white`}
+                  >
+                    {t.pdfFontDelete}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs opacity-50 flex-1">{t.pdfFontNotSet}</span>
+                  <input
+                    ref={pdfFontBoldRef}
+                    type="file"
+                    accept=".ttf,.otf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePdfFontUpload('bold', file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    onClick={() => pdfFontBoldRef.current?.click()}
+                    className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-blue-600 hover:bg-blue-500' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                  >
+                    {t.pdfFontUpload}
+                  </button>
+                </>
+              )}
+            </div>
+            
+            {/* Download hint */}
+            <a
+              href="https://fonts.google.com/noto/specimen/Noto+Sans+JP"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-400 hover:underline"
+            >
+              → {t.pdfFontDownloadHint}
+            </a>
           </div>
         </div>
       )}

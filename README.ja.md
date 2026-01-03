@@ -2,7 +2,7 @@
 
 VIMキーバインド、多言語対応、EPUB/PDF/HTML/Markdownエクスポート機能を備えたブラウザベースのMarkdown電子書籍エディタ。
 
-**バージョン: 0.4.3**
+**バージョン: 0.4.4**
 
 **[🇬🇧 English version](README.md)**
 
@@ -15,9 +15,19 @@ VIMキーバインド、多言語対応、EPUB/PDF/HTML/Markdownエクスポー�
 - **マルチファイル対応** - ドラッグ&ドロップで並び替え可能な複数チャプター管理
 
 ### インポート & エクスポート
-- **エクスポート形式**: EPUB, PDF, HTML, Markdown (ZIP)
+- **エクスポート形式**: EPUB, PDF (pdfmake), HTML, Markdown (ZIP)
 - **インポート**: ローカルファイル、URL（Qiita、GitHub自動変換）
 - **プロジェクト形式**: `.mdebook`（ZIPベース）で画像付きプロジェクトを保存/読み込み
+
+### PDFエクスポート（v0.4.4新機能）
+- **日本語フォント対応** - カスタムTTF/OTFフォントをアップロード（IndexedDBに保存）
+- **目次** - 内部リンク付き自動生成
+- **ページ番号** - ヘッダーにタイトル、フッターにページ番号
+- **テーマCSS対応** - EPUBテーマの行間、文字間隔を反映
+- **テーブル、リンク、書式** - フルMarkdown対応
+- **章扉** - 目次で結合表示（例：「第1章 はじめに」）
+- **奥付** - 特別なフォーマット、目次から除外
+- **絵文字処理** - PDFでは自動削除（EPUB/HTMLでは保持）
 
 ### EPUBテーマ
 - **5つのプリセットテーマ**: クラシック、モダン、テクニカル、小説、アカデミック
@@ -91,6 +101,42 @@ node build-html.cjs
 - [Tutorial (English)](docs/tutorial.md)
 - [チュートリアル (日本語)](docs/tutorial.ja.md)
 
+## 📄 PDFエクスポート
+
+### 日本語フォントの設定
+
+1. [Google Fonts - Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) からフォントをダウンロード
+2. 設定（歯車アイコン）を開く
+3. 「PDF用フォント設定」までスクロール
+4. 標準フォント（必須）と太字フォント（任意）をアップロード
+5. フォントはIndexedDBに保存（セッション間で永続化）
+
+### PDF機能
+
+| 機能 | 対応 |
+|------|------|
+| 見出し（h1-h4） | ✅ 目次リンク付きスタイル |
+| テーブル | ✅ 罫線とヘッダースタイル |
+| コードブロック | ✅ 等幅フォント、背景色 |
+| リスト（ul/ol） | ✅ ネスト対応 |
+| リンク | ✅ クリック可能、下線付き |
+| 太字/イタリック | ✅ インライン書式 |
+| 引用 | ✅ インデント付きスタイル |
+| 水平線 | ✅ グレーライン |
+| 章扉 | ✅ 結合目次エントリ |
+| 奥付 | ✅ 目次から除外 |
+| 絵文字 | ⚠️ 自動削除（フォント制限） |
+| 画像 | ❌ 未対応 |
+| Mermaid | ❌ 未対応 |
+
+### 目次深度設定
+
+目次深度設定はEPUBとPDF両方に影響：
+- **0**: 目次なし
+- **1**: H1のみ
+- **2**: H1 + H2（デフォルト）
+- **3**: H1 + H2 + H3
+
 ## 🎨 EPUBテーマ
 
 ### プリセットテーマ
@@ -103,7 +149,7 @@ node build-html.cjs
 | **小説** | シーン区切り対応の読書最適化 | フィクション |
 | **アカデミック** | 両端揃えの学術スタイル | 学術論文 |
 
-### Kindle最適化CSS (v0.4.3)
+### Kindle最適化CSS
 
 すべてのテーマはKindleデバイス向けに最適化：
 
@@ -113,9 +159,9 @@ html { font-size: 100%; }
 body {
   margin: 0;
   padding: 0;
-  line-height: 1.75;        /* 日本語に適した行間 */
-  text-align: justify;       /* 電子書籍標準の両端揃え */
-  word-wrap: break-word;     /* 長い英単語の突き抜け防止 */
+  line-height: 1.7;           /* 読みやすい行間 */
+  text-align: justify;         /* 電子書籍標準の両端揃え */
+  word-wrap: break-word;       /* 長い英単語の突き抜け防止 */
 }
 
 /* 見出し */
@@ -149,6 +195,16 @@ pre code { font-size: inherit; }  /* ネストされたcodeをリセット */
 | 📑 章扉 | `章扉N.md` | 現在のタブの次 |
 | 📚 参考文献 | `参考文献.md` / `bibliography.md` | 奥付の前（自動） |
 
+### 章扉ページ
+
+章扉ページは自動検出されてフォーマットされます：
+- 目次: 「第1章 章タイトル」形式で結合
+- PDF: 中央揃えのタイトル、オプションのエピグラフ
+
+検出パターン:
+- `<div class="chapter-title-page">` ラッパー
+- または `# 第N章` に続く `## サブタイトル`
+
 ### EPUBファイル順序
 EPUBエクスポート時にファイルは自動的にソートされます：
 1. はじめに/序文
@@ -180,6 +236,9 @@ mdebook/
 ├── src/
 │   ├── components/     # Reactコンポーネント
 │   ├── utils/          # ユーティリティ関数
+│   │   ├── export.ts   # EPUB/HTMLエクスポート
+│   │   ├── pdf-export.ts # PDFエクスポート（pdfmake）
+│   │   └── storage.ts  # IndexedDB操作
 │   ├── i18n/           # 翻訳
 │   ├── types/          # TypeScript型定義
 │   ├── hooks/          # Reactフック
@@ -195,7 +254,7 @@ mdebook/
 - **エディタ**: CodeMirror 6 + @replit/codemirror-vim
 - **スタイリング**: Tailwind CSS
 - **ビルド**: Vite
-- **エクスポート**: JSZip, FileSaver.js, Mermaid
+- **エクスポート**: JSZip, FileSaver.js, Mermaid, pdfmake
 
 ## 📦 エクスポート形式
 
@@ -203,7 +262,7 @@ mdebook/
 ほとんどの電子書籍リーダーと互換性のある標準的な電子書籍形式。表紙画像、カスタムテーマ、Mermaidダイアグラム変換をサポート。
 
 ### PDF
-ブラウザの印刷ダイアログを開いてPDFを生成。
+pdfmakeによるネイティブPDF生成。日本語フォント、テーブル、コードブロック、自動生成目次をサポート。
 
 ### HTML
 スタイルを埋め込んだスタンドアロンHTMLファイル。
@@ -213,10 +272,21 @@ mdebook/
 book-markdown.zip
 ├── metadata.json
 ├── chapters/
-│   ├── 01-chapter1.md
-│   └── 02-chapter2.md
+│   ├── chapter1.md
+│   └── chapter2.md
 └── images/
     └── image1.png
+```
+
+### .mdebookプロジェクト形式
+```
+project.mdebook (ZIP)
+├── manifest.json
+├── chapters/
+│   ├── chapter1.md      # .md拡張子付き
+│   └── chapter2.md
+└── images/
+    └── cover.png
 ```
 
 ## 🌐 ブラウザ互換性
@@ -227,45 +297,56 @@ book-markdown.zip
 | Firefox | ✅ サポート（フォールバックファイル処理） |
 | Safari | ✅ サポート（フォールバックファイル処理） |
 
+**注意**: IndexedDB（フォント保存用）は一部のブラウザで`file://`プロトコルでは制限される場合があります。最良の結果を得るにはローカルサーバーまたはChromeを使用してください。
+
 ## 📝 変更履歴
+
+### v0.4.4
+- **PDFエクスポート強化**:
+  - 日本語フォント対応のpdfmake完全統合
+  - カスタムTTF/OTFフォントのアップロード（IndexedDB保存）
+  - 罫線とヘッダースタイル付きテーブル対応
+  - リンク、イタリック、水平線対応
+  - 背景色と等幅フォント付きコードブロック
+  - テーマCSS反映（行間、文字間隔、テキスト配置）
+  - 絵文字自動削除（フォントは絵文字非対応のため）
+  - 章扉: 結合目次エントリ（例：「第1章 章タイトル」）
+  - 奥付: 特別フォーマット、目次から除外
+- **EPUBエクスポート強化**:
+  - 章扉: 結合目次エントリ
+  - コードブロック内の見出しを目次から除外
+- **プロジェクト形式**:
+  - `.mdebook`内のMarkdownファイルに`.md`拡張子を付与
+  - タブ表示は拡張子なし
 
 ### v0.4.3
 - **Kindle最適化CSS**: 全5テーマをKindleパブリッシングガイドライン2025に準拠して書き直し
   - `html { font-size: 100%; }` でユーザーのフォント設定を尊重
-  - `body { line-height: 1.75; text-align: justify; word-wrap: break-word; }`
+  - `body { line-height: 1.7; text-align: justify; word-wrap: break-word; }`
   - 見出し: h1=1.6em, h2=1.3em, h3=1.1em、h1に`page-break-before: always`
-  - コードブロック: `<pre><code>`ネストでのfont-size累積防止のため`code`と`pre`を分離定義
-- **特定フォントファミリーの削除**: 電子書籍リーダー互換性のため総称ファミリー（`sans-serif`, `monospace`）のみ使用
-- **CSSコメント構造化**: セクション別に整理（Base, Headings, Paragraphs, Lists, Code, Tables, Images）
+  - コードブロック: `<pre><code>`ネストでのfont-size累積防止のため分離定義
+- **特定フォントファミリーの削除**: 電子書籍リーダー互換性のため総称ファミリーのみ使用
 
 ### v0.4.2
 - 章扉を現在のタブの次に挿入するように変更
-- 章扉の目次表示を改善（「第1章 はじめに」のように結合表示）
-- 全テーマからbodyのfont-sizeを削除（電子書籍リーダー互換性向上）
+- 章扉の目次表示を改善
+- 全テーマからbodyのfont-sizeを削除
 
 ### v0.4.1
 - 書籍構成テンプレート: 奥付、はじめに、章扉、参考文献
 - 補足欄ブロック（:::note, :::warning, :::tip 等）
-- EPUB自動ファイル順序（はじめにが先頭、奥付が末尾）
+- EPUB自動ファイル順序
 - 表紙画像の永続化修正
 - EPUB互換のMermaid PNG変換
 
 ### v0.4.0
-- 5つのEPUBプリセットテーマを追加（クラシック、モダン、テクニカル、小説、アカデミック）
+- 5つのEPUBプリセットテーマを追加
 - EPUB用カスタムCSSインポート/エクスポート
 - Kindleパブリッシングガイドライン準拠
 - 階層的目次
 
-### v0.3.2
+### v0.3.x
 - EPUB表紙画像サポート
-- タブ名変更バグ修正
-- バージョン統一
-
-### v0.3.1
-- CORSプロキシフォールバック
-- ドラッグ&ドロップタブ位置指定
-
-### v0.3.0
 - .mdebookプロジェクト形式
 - 画像管理
 - URL/Qiitaインポート
@@ -285,3 +366,4 @@ MIT License
 - [Marked](https://marked.js.org/)
 - [Mermaid](https://mermaid.js.org/)
 - [JSZip](https://stuk.github.io/jszip/)
+- [pdfmake](http://pdfmake.org/)

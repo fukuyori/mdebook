@@ -150,14 +150,20 @@ export async function saveProjectAsZip(
 ): Promise<Blob> {
   const zip = new JSZip();
   
-  // Create manifest
-  const manifest = createManifest(files, metadata, uiLang, images, version);
+  // Add .md extension to file names for storage
+  const filesWithExt = files.map(f => ({
+    ...f,
+    name: f.name.endsWith('.md') ? f.name : `${f.name}.md`
+  }));
+  
+  // Create manifest with .md extensions
+  const manifest = createManifest(filesWithExt, metadata, uiLang, images, version);
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
   
-  // Add chapters
+  // Add chapters with .md extension
   const chaptersFolder = zip.folder('chapters');
   if (chaptersFolder) {
-    files.forEach(file => {
+    filesWithExt.forEach(file => {
       chaptersFolder.file(file.name, file.content);
     });
   }
@@ -199,6 +205,11 @@ export async function loadProjectFromZip(data: ArrayBuffer): Promise<ProjectData
     const manifestStr = await manifestFile.async('string');
     const manifest: ProjectManifest = JSON.parse(manifestStr);
     
+    // Helper to remove .md extension for display
+    const removeExtension = (name: string): string => {
+      return name.endsWith('.md') ? name.slice(0, -3) : name;
+    };
+    
     // Read chapters
     const files: EditorFile[] = [];
     for (const chapterName of manifest.chapters) {
@@ -207,7 +218,7 @@ export async function loadProjectFromZip(data: ArrayBuffer): Promise<ProjectData
         const content = await chapterFile.async('string');
         files.push({
           id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-          name: chapterName,
+          name: removeExtension(chapterName),  // Remove .md for display
           content,
         });
       }

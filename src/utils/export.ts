@@ -685,6 +685,22 @@ interface HeadingInfo {
 }
 
 /**
+ * Detect if content is a chapter title page
+ */
+function isChapterTitlePage(content: string): boolean {
+  // Check for div tag
+  const hasDivTag = content.includes('<div class="chapter-title-page">') || 
+                    content.includes('class="chapter-title-page"');
+  
+  // Pattern: # 第N章 or # Chapter N (with possible trailing spaces)
+  const chapterPattern = /^#\s+(第\d+章|Chapter\s+\d+|제\d+장)\s*$/m;
+  const hasChapterHeading = chapterPattern.test(content);
+  const hasSubtitle = /^##\s+.+$/m.test(content);
+  
+  return hasDivTag || (hasChapterHeading && hasSubtitle);
+}
+
+/**
  * Extract headings from Markdown content
  * Handles chapter title pages with HTML wrappers
  */
@@ -695,15 +711,30 @@ function extractHeadings(content: string, maxDepth: number = 2): HeadingInfo[] {
   // Track used IDs to ensure uniqueness
   const usedIds = new Map<string, number>();
   
-  // Check if this is a chapter title page (has chapter-title-page div)
-  const isChapterTitle = content.includes('class="chapter-title-page"');
+  // Check if this is a chapter title page
+  const isChapterTitle = isChapterTitlePage(content);
+  
+  // For chapter title pages, we need at least depth 2 to get h2 for combining
+  const effectiveMaxDepth = isChapterTitle ? Math.max(maxDepth, 2) : maxDepth;
+  
+  // Track if we're inside a code block
+  let inCodeBlock = false;
   
   for (const line of lines) {
+    // Check for code block markers
+    if (line.trimStart().startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    
+    // Skip headings inside code blocks
+    if (inCodeBlock) continue;
+    
     // Match ATX headings (# style)
     const match = line.match(/^(#{1,6})\s+(.+)$/);
     if (match) {
       const level = match[1].length;
-      if (level <= maxDepth) {
+      if (level <= effectiveMaxDepth) {
         let title = match[2].trim();
         // Remove trailing # if present
         title = title.replace(/\s+#+\s*$/, '');
@@ -758,6 +789,35 @@ function generateHeadingId(title: string): string {
  * Generate PDF by opening print dialog
  */
 export async function generatePdf(
+  files: EditorFile[],
+  metadata: BookMetadata,
+  isDark: boolean,
+  onProgress?: (status: string) => void,
+  css?: string
+): Promise<void> {
+  onProgress?.('Initializing PDF generator...');
+  
+  // Dynamic import of pdf-export module
+  const { exportToPdf } = await import('./pdf-export');
+  
+  // Convert EditorFile[] to the format expected by exportToPdf
+  const pdfFiles = files.map(f => ({
+    name: f.name,
+    content: f.content,
+  }));
+  
+  await exportToPdf(pdfFiles, {
+    title: metadata.title || 'Untitled',
+    author: metadata.author || '',
+    tocDepth: metadata.tocDepth ?? 2,
+    css: css || metadata.customCss,
+  }, onProgress);
+}
+
+/**
+ * Generate PDF using browser print dialog (legacy method)
+ */
+export async function generatePdfLegacy(
   files: EditorFile[],
   metadata: BookMetadata,
   isDark: boolean,

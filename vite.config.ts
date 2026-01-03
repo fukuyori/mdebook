@@ -20,11 +20,13 @@ export default defineConfig({
       formats: ['iife', 'es'],
     },
     rollupOptions: {
-      external: ['react', 'react-dom'],
+      external: ['react', 'react-dom', 'pdfmake/build/pdfmake', 'pdfmake/build/vfs_fonts'],
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
+          'pdfmake/build/pdfmake': 'pdfMake',
+          'pdfmake/build/vfs_fonts': 'pdfMakeVfs',
         },
       },
     },
