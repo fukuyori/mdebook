@@ -303,9 +303,10 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
-### v0.4.8
+### v0.4.9
 - **mdvim Format Support**:
   - Import `.mdvim` files (drag & drop, file picker, or Open dialog)
+  - Support both ZIP archive and plain text Markdown formats
   - Export current file as `.mdvim` format
   - Automatic image extraction and embedding
   - Metadata preservation (title, author, language)

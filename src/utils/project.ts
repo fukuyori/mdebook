@@ -578,13 +578,49 @@ interface MdvimManifest {
 }
 
 /**
+ * Check if ArrayBuffer contains a ZIP file (starts with PK signature)
+ */
+function isZipFile(data: ArrayBuffer): boolean {
+  const arr = new Uint8Array(data);
+  // ZIP files start with PK (0x50 0x4B)
+  return arr.length >= 2 && arr[0] === 0x50 && arr[1] === 0x4B;
+}
+
+/**
  * Load mdvim file and convert to MDebook format
+ * Supports both ZIP archive format and plain text Markdown format
  * @param data - ArrayBuffer of the .mdvim file
  * @param filename - Original filename for fallback title
  * @returns ProjectData or null if failed
  */
 export async function loadMdvimFile(data: ArrayBuffer, filename: string): Promise<ProjectData | null> {
   try {
+    const title = filename.replace(/\.mdvim$/i, '');
+    
+    // Check if it's a ZIP file or plain text
+    if (!isZipFile(data)) {
+      // Plain text Markdown file with .mdvim extension
+      const decoder = new TextDecoder('utf-8');
+      const content = decoder.decode(data);
+      
+      return {
+        version: '0.8.0',
+        files: [{
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+          name: title,
+          content,
+        }],
+        metadata: {
+          title,
+          author: '',
+          language: 'ja',
+        },
+        uiLang: 'ja',
+        images: [],
+      };
+    }
+    
+    // ZIP archive format
     const zip = await JSZip.loadAsync(data);
     
     // Read manifest.json
@@ -608,7 +644,7 @@ export async function loadMdvimFile(data: ArrayBuffer, filename: string): Promis
     const content = await contentFile.async('string');
     
     // Extract metadata
-    const title = manifest?.metadata?.title || filename.replace(/\.mdvim$/, '');
+    const metaTitle = manifest?.metadata?.title || title;
     const author = manifest?.metadata?.author || '';
     const language = (manifest?.metadata?.language as BookLanguage) || 'ja';
     
@@ -644,7 +680,7 @@ export async function loadMdvimFile(data: ArrayBuffer, filename: string): Promis
     // Create single file from content
     const files: EditorFile[] = [{
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      name: title,
+      name: metaTitle,
       content,
     }];
     
@@ -652,7 +688,7 @@ export async function loadMdvimFile(data: ArrayBuffer, filename: string): Promis
       version: manifest?.version || '0.8.0',
       files,
       metadata: {
-        title,
+        title: metaTitle,
         author,
         language,
       },
