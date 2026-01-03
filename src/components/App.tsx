@@ -1169,10 +1169,57 @@ export const App: React.FC = () => {
     input.click();
   }, [handleImageAdd, activeFile, updateFileContent]);
   
-  // VIM :e command handler
+  // VIM :e command handler - edit file (clears project and creates new)
   const handleVimEdit = useCallback((arg?: string) => {
-    // :e always opens file/project dialog (replaces current project)
-    handleOpen();
+    if (!arg) {
+      // :e with no argument - open file dialog
+      handleOpen();
+      return;
+    }
+    
+    // :e filename - clear project and create new file
+    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    const newName = arg.endsWith('.md') ? arg.replace(/\.md$/, '') : arg;
+    const newFile = { id: newId, name: newName, content: '' };
+    
+    // Clear all files and images, create new project
+    setFiles([newFile]);
+    setImages([]);
+    setActiveFileId(newId);
+    setMetadata(prev => ({
+      ...prev,
+      title: newName,
+      coverImageId: undefined,
+    }));
+    fileHandleRef.current = null;
+    setExportStatus(`Created: ${newName}`);
+    setTimeout(() => setExportStatus(''), 2000);
+  }, [handleOpen]);
+  
+  // VIM :e! command handler - force edit (same as :e, clears project)
+  const handleVimEditForce = useCallback((arg?: string) => {
+    if (!arg) {
+      // :e! with no argument - open file dialog
+      handleOpen();
+      return;
+    }
+    
+    // :e! filename - same as :e (clear project and create new file)
+    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    const newName = arg.endsWith('.md') ? arg.replace(/\.md$/, '') : arg;
+    const newFile = { id: newId, name: newName, content: '' };
+    
+    setFiles([newFile]);
+    setImages([]);
+    setActiveFileId(newId);
+    setMetadata(prev => ({
+      ...prev,
+      title: newName,
+      coverImageId: undefined,
+    }));
+    fileHandleRef.current = null;
+    setExportStatus(`Created: ${newName}`);
+    setTimeout(() => setExportStatus(''), 2000);
   }, [handleOpen]);
   
   // VIM :imp command handler
@@ -1794,6 +1841,7 @@ export const App: React.FC = () => {
               scrollToRef={editorScrollRef}
               focusRef={editorFocusRef}
               onVimEdit={handleVimEdit}
+              onVimEditForce={handleVimEditForce}
               onVimWrite={handleVimWrite}
               onVimWriteForce={handleVimWriteForce}
               onVimQuit={handleVimQuit}

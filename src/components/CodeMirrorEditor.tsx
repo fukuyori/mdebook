@@ -59,6 +59,7 @@ interface CodeMirrorEditorProps {
   focusRef?: React.MutableRefObject<(() => void) | null>;
   // VIM command callbacks
   onVimEdit?: (arg?: string) => void;  // :e [file/url]
+  onVimEditForce?: (arg?: string) => void;  // :e! [file] - force edit (discard changes)
   onVimWrite?: (arg?: string) => void; // :w [filename]
   onVimWriteForce?: () => void;        // :w!
   onVimQuit?: () => void;              // :q
@@ -80,6 +81,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   scrollToRef,
   focusRef,
   onVimEdit,
+  onVimEditForce,
   onVimWrite,
   onVimWriteForce,
   onVimQuit,
@@ -96,6 +98,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   
   // Refs for VIM command callbacks (to avoid stale closures)
   const onVimEditRef = useRef(onVimEdit);
+  const onVimEditForceRef = useRef(onVimEditForce);
   const onVimWriteRef = useRef(onVimWrite);
   const onVimWriteForceRef = useRef(onVimWriteForce);
   const onVimQuitRef = useRef(onVimQuit);
@@ -105,13 +108,14 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   
   useEffect(() => {
     onVimEditRef.current = onVimEdit;
+    onVimEditForceRef.current = onVimEditForce;
     onVimWriteRef.current = onVimWrite;
     onVimWriteForceRef.current = onVimWriteForce;
     onVimQuitRef.current = onVimQuit;
     onVimImportRef.current = onVimImport;
     onImageAddRef.current = onImageAdd;
     onModeChangeRef.current = onModeChange;
-  }, [onVimEdit, onVimWrite, onVimWriteForce, onVimQuit, onVimImport, onImageAdd, onModeChange]);
+  }, [onVimEdit, onVimEditForce, onVimWrite, onVimWriteForce, onVimQuit, onVimImport, onImageAdd, onModeChange]);
   
   // Ref for image handler (to avoid stale closures in domEventHandlers)
   const handleImageFileRef = useRef<((file: File) => Promise<void>) | null>(null);
@@ -141,7 +145,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   
   // Define custom VIM commands (only once)
   useEffect(() => {
-    // :e [file/url] - edit/open file
+    // :e [file/url] - edit/open file or create new
     Vim.defineEx('e', 'e', (_cm: unknown, params: { args?: string[] }) => {
       const arg = params.args?.join(' ');
       onVimEditRef.current?.(arg);
@@ -150,6 +154,17 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
     Vim.defineEx('edit', 'edit', (_cm: unknown, params: { args?: string[] }) => {
       const arg = params.args?.join(' ');
       onVimEditRef.current?.(arg);
+    });
+    
+    // :e! [file] - force edit (discard unsaved changes)
+    Vim.defineEx('e!', 'e!', (_cm: unknown, params: { args?: string[] }) => {
+      const arg = params.args?.join(' ');
+      onVimEditForceRef.current?.(arg);
+    });
+    
+    Vim.defineEx('edit!', 'edit!', (_cm: unknown, params: { args?: string[] }) => {
+      const arg = params.args?.join(' ');
+      onVimEditForceRef.current?.(arg);
     });
     
     // :w [filename] - write/save file (shows dialog)

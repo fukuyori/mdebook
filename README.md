@@ -303,7 +303,11 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
-### v0.4.9
+### v0.5.0
+- **VIM :e Command Enhancement**:
+  - `:e filename` - Clear project and create new file with specified name
+  - `:e! filename` - Same as `:e` (force create)
+  - `:e` (no argument) - Open file dialog (existing behavior)
 - **mdvim Format Support**:
   - Import `.mdvim` files (drag & drop, file picker, or Open dialog)
   - Support both ZIP archive and plain text Markdown formats
