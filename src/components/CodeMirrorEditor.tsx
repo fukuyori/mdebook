@@ -8,6 +8,12 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { vim, getCM, Vim } from '@replit/codemirror-vim';
 import type { VimMode, EditorPosition } from '../types';
 
+// Type for CodeMirror adapter used by VIM
+interface CodeMirrorLike {
+  cm6: EditorView;
+  on: (event: string, callback: (...args: unknown[]) => void) => void;
+}
+
 // Compartments for dynamic reconfiguration
 const themeCompartment = new Compartment();
 const fontCompartment = new Compartment();
@@ -91,10 +97,25 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
   const [currentMode, setCurrentMode] = useState<string>('normal');
+  const currentModeRef = useRef<string>('normal');
   const [cursorPosition, setCursorPosition] = useState<EditorPosition>({ lineNumber: 1, column: 1 });
   const [vimCommand, setVimCommand] = useState<string>('');
   const isUpdatingRef = useRef(false);
   const isScrollingRef = useRef(false);
+  
+  // Track VIM state for IME handling
+  const vimStateRef = useRef<{
+    waitingForChar: boolean;  // f, F, t, T, r waiting for character input
+    inCommandLine: boolean;   // :, /, ? command line mode
+  }>({
+    waitingForChar: false,
+    inCommandLine: false,
+  });
+  
+  // Keep currentModeRef in sync with currentMode
+  useEffect(() => {
+    currentModeRef.current = currentMode;
+  }, [currentMode]);
   
   // Refs for VIM command callbacks (to avoid stale closures)
   const onVimEditRef = useRef(onVimEdit);
@@ -105,6 +126,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   const onVimImportRef = useRef(onVimImport);
   const onImageAddRef = useRef(onImageAdd);
   const onModeChangeRef = useRef(onModeChange);
+  const vimEnabledRef = useRef(vimEnabled);
   
   useEffect(() => {
     onVimEditRef.current = onVimEdit;
@@ -115,7 +137,8 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
     onVimImportRef.current = onVimImport;
     onImageAddRef.current = onImageAdd;
     onModeChangeRef.current = onModeChange;
-  }, [onVimEdit, onVimEditForce, onVimWrite, onVimWriteForce, onVimQuit, onVimImport, onImageAdd, onModeChange]);
+    vimEnabledRef.current = vimEnabled;
+  }, [onVimEdit, onVimEditForce, onVimWrite, onVimWriteForce, onVimQuit, onVimImport, onImageAdd, onModeChange, vimEnabled]);
   
   // Ref for image handler (to avoid stale closures in domEventHandlers)
   const handleImageFileRef = useRef<((file: File) => Promise<void>) | null>(null);
@@ -145,6 +168,78 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   
   // Define custom VIM commands (only once)
   useEffect(() => {
+    // Custom page scroll actions that maintain cursor's screen position
+    // This is closer to true VIM behavior where Ctrl+f/Ctrl+b scroll the view
+    // while keeping the cursor at the same relative screen position
+    Vim.defineAction('scrollPageDown', (cm: CodeMirrorLike) => {
+      const view = cm.cm6 as EditorView;
+      if (!view) return;
+      
+      const scrollDOM = view.scrollDOM;
+      const pageHeight = scrollDOM.clientHeight;
+      const currentScrollTop = scrollDOM.scrollTop;
+      const maxScroll = scrollDOM.scrollHeight - scrollDOM.clientHeight;
+      
+      // Calculate new scroll position (1 page down, minus 2 lines for context)
+      const lineHeight = view.defaultLineHeight;
+      const scrollAmount = pageHeight - (lineHeight * 2);
+      const newScrollTop = Math.min(currentScrollTop + scrollAmount, maxScroll);
+      
+      // Scroll the view
+      scrollDOM.scrollTop = newScrollTop;
+      
+      // Move cursor to keep it visible (move down by scroll amount in lines)
+      const scrolledLines = Math.round(scrollAmount / lineHeight);
+      const state = view.state;
+      const cursorPos = state.selection.main.head;
+      const currentLine = state.doc.lineAt(cursorPos);
+      const targetLineNum = Math.min(currentLine.number + scrolledLines, state.doc.lines);
+      const targetLine = state.doc.line(targetLineNum);
+      const newPos = Math.min(targetLine.from + (cursorPos - currentLine.from), targetLine.to);
+      
+      view.dispatch({
+        selection: { anchor: newPos },
+        scrollIntoView: false,
+      });
+    });
+    
+    Vim.defineAction('scrollPageUp', (cm: CodeMirrorLike) => {
+      const view = cm.cm6 as EditorView;
+      if (!view) return;
+      
+      const scrollDOM = view.scrollDOM;
+      const pageHeight = scrollDOM.clientHeight;
+      const currentScrollTop = scrollDOM.scrollTop;
+      
+      // Calculate new scroll position (1 page up, minus 2 lines for context)
+      const lineHeight = view.defaultLineHeight;
+      const scrollAmount = pageHeight - (lineHeight * 2);
+      const newScrollTop = Math.max(currentScrollTop - scrollAmount, 0);
+      
+      // Scroll the view
+      scrollDOM.scrollTop = newScrollTop;
+      
+      // Move cursor to keep it visible (move up by scroll amount in lines)
+      const scrolledLines = Math.round(scrollAmount / lineHeight);
+      const state = view.state;
+      const cursorPos = state.selection.main.head;
+      const currentLine = state.doc.lineAt(cursorPos);
+      const targetLineNum = Math.max(currentLine.number - scrolledLines, 1);
+      const targetLine = state.doc.line(targetLineNum);
+      const newPos = Math.min(targetLine.from + (cursorPos - currentLine.from), targetLine.to);
+      
+      view.dispatch({
+        selection: { anchor: newPos },
+        scrollIntoView: false,
+      });
+    });
+    
+    // Map Ctrl+f and Ctrl+b to custom actions
+    Vim.mapCommand('<C-f>', 'action', 'scrollPageDown', {}, { context: 'normal' });
+    Vim.mapCommand('<C-b>', 'action', 'scrollPageUp', {}, { context: 'normal' });
+    Vim.mapCommand('<PageDown>', 'action', 'scrollPageDown', {}, { context: 'normal' });
+    Vim.mapCommand('<PageUp>', 'action', 'scrollPageUp', {}, { context: 'normal' });
+    
     // :e [file/url] - edit/open file or create new
     Vim.defineEx('e', 'e', (_cm: unknown, params: { args?: string[] }) => {
       const arg = params.args?.join(' ');
@@ -310,7 +405,9 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
       keymap.of([
         ...defaultKeymap,
         ...historyKeymap,
-        ...searchKeymap,
+        // Only include searchKeymap when VIM is disabled
+        // VIM mode has its own Ctrl+f (page down) and / (search) bindings
+        ...(vimEnabled ? [] : searchKeymap),
         indentWithTab,
       ]),
       markdown(),
@@ -337,6 +434,31 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
       }),
       // Scroll event handler
       EditorView.domEventHandlers({
+        // Handle IME input based on VIM state
+        compositionstart: (event) => {
+          // In VIM mode, check if IME should be allowed
+          if (vimEnabledRef.current) {
+            const mode = currentModeRef.current;
+            const vimState = vimStateRef.current;
+            
+            // Allow composition in these cases:
+            // 1. Insert mode
+            // 2. Replace mode
+            // 3. Waiting for character (f, F, t, T, r commands)
+            // 4. Command line mode (/, ?, :)
+            const allowIME = 
+              mode.includes('insert') || 
+              mode.includes('replace') ||
+              vimState.waitingForChar ||
+              vimState.inCommandLine;
+            
+            if (!allowIME) {
+              event.preventDefault();
+              return true;
+            }
+          }
+          return false;
+        },
         scroll: (event, view) => {
           if (isScrollingRef.current) return;
           
@@ -444,12 +566,35 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
             const mode = event.subMode ? `${event.mode} ${event.subMode}` : event.mode;
             setCurrentMode(mode);
             onModeChangeRef.current?.(toVimMode(mode));
+            
+            // Reset waiting state on mode change
+            vimStateRef.current.waitingForChar = false;
+            // Check if entering command line mode
+            vimStateRef.current.inCommandLine = mode === 'normal' && event.subMode === 'cmdline';
           });
           
           // Listen for command line updates
           cm.on('vim-command-update', (command: string) => {
             setVimCommand(command);
+            // Detect command line mode from command prefix
+            const inCmdLine = command.startsWith(':') || 
+                              command.startsWith('/') || 
+                              command.startsWith('?');
+            vimStateRef.current.inCommandLine = inCmdLine;
           });
+          
+          // Listen for keypress to detect f/F/t/T/r commands
+          cm.on('vim-keypress', (key: string) => {
+            // Check if this is a character-waiting command
+            const waitingCommands = ['f', 'F', 't', 'T', 'r'];
+            if (waitingCommands.includes(key)) {
+              vimStateRef.current.waitingForChar = true;
+            } else {
+              // Any other key resets the waiting state
+              vimStateRef.current.waitingForChar = false;
+            }
+          });
+          
           return true;
         }
         return false;

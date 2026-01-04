@@ -303,6 +303,17 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
+### v0.5.1
+- **VIM Mode IME Enhancement**:
+  - Support IME input for `f`/`F`/`t`/`T` character search commands
+  - Support IME input for `r` single character replace
+  - Support IME input in `/` and `?` search commands
+  - Support IME input in `:s/pattern/replacement/` substitute command
+  - Block IME input in normal/visual mode (prevents accidental input)
+- **VIM Mode Page Scroll Fix**:
+  - `Ctrl+f`/`Ctrl+b` now scroll screen while maintaining cursor's relative position
+  - Proper VIM-like behavior with 2-line overlap for context
+
 ### v0.5.0
 - **VIM :e Command Enhancement**:
   - `:e filename` - Clear project and create new file with specified name
