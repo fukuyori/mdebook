@@ -72,6 +72,10 @@ interface CodeMirrorEditorProps {
   onVimImport?: (arg?: string) => void; // :imp [file/url]
   // Image handling
   onImageAdd?: (file: File) => Promise<string | null>; // Returns image reference string or null
+  // VIM marks management
+  fileId?: string;  // Current file ID for mark management
+  getMarksRef?: React.MutableRefObject<(() => Record<string, { line: number; ch: number }>) | null>;
+  setMarksRef?: React.MutableRefObject<((marks: Record<string, { line: number; ch: number }>) => void) | null>;
 }
 
 export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
@@ -93,6 +97,9 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   onVimQuit,
   onVimImport,
   onImageAdd,
+  fileId,
+  getMarksRef,
+  setMarksRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorView | null>(null);
@@ -347,6 +354,68 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
       if (focusRef) focusRef.current = null;
     };
   }, [focusRef]);
+  
+  // Register marks getter function to ref
+  useEffect(() => {
+    if (getMarksRef) {
+      getMarksRef.current = () => {
+        if (!editorRef.current || !vimEnabled) return {};
+        const cm = getCM(editorRef.current);
+        if (!cm) return {};
+        
+        const vim = cm.state?.vim;
+        if (!vim || !vim.marks) return {};
+        
+        const result: Record<string, { line: number; ch: number }> = {};
+        for (const key in vim.marks) {
+          const mark = vim.marks[key];
+          if (mark) {
+            const pos = mark.find();
+            if (pos) {
+              result[key] = { line: pos.line, ch: pos.ch };
+            }
+          }
+        }
+        return result;
+      };
+    }
+    return () => {
+      if (getMarksRef) getMarksRef.current = null;
+    };
+  }, [getMarksRef, vimEnabled]);
+  
+  // Register marks setter function to ref
+  useEffect(() => {
+    if (setMarksRef) {
+      setMarksRef.current = (marks: Record<string, { line: number; ch: number }>) => {
+        if (!editorRef.current || !vimEnabled) return;
+        const cm = getCM(editorRef.current);
+        if (!cm) return;
+        
+        const vim = cm.state?.vim;
+        if (!vim) return;
+        
+        // Clear existing marks
+        if (vim.marks) {
+          for (const key in vim.marks) {
+            if (vim.marks[key]) {
+              vim.marks[key].clear();
+            }
+          }
+        }
+        vim.marks = {};
+        
+        // Set new marks
+        for (const key in marks) {
+          const pos = marks[key];
+          vim.marks[key] = cm.setBookmark({ line: pos.line, ch: pos.ch });
+        }
+      };
+    }
+    return () => {
+      if (setMarksRef) setMarksRef.current = null;
+    };
+  }, [setMarksRef, vimEnabled]);
 
   // Convert VIM mode string to VimMode type
   const toVimMode = (mode: string): VimMode => {

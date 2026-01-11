@@ -3,6 +3,7 @@ node_modules/
 
 # Build output (keep mdebook.html for GitHub Pages)
 dist/*.js
+dist/*-v*.html
 
 # IDE
 .vscode/

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { parseMarkdown, highlightCodeBlocks, initializeMermaidDiagrams } from '../utils';
+import { parseMarkdown, highlightCodeBlocks, initializeMermaidDiagrams, convertRubyToHtml } from '../utils';
 import { PREVIEW_DEBOUNCE_MS } from '../constants';
 
 /**
@@ -71,7 +71,9 @@ export const Preview: React.FC<PreviewProps> = ({
     }
     
     debounceRef.current = setTimeout(() => {
-      let parsed = parseMarkdown(content);
+      // Convert ruby notation first
+      const rubyConverted = convertRubyToHtml(content);
+      let parsed = parseMarkdown(rubyConverted);
       parsed = replaceImageUrls(parsed);
       setHtml(parsed);
     }, PREVIEW_DEBOUNCE_MS);

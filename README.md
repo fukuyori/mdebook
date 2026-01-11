@@ -303,6 +303,20 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
+### v0.5.2
+- **Ruby (Furigana) Support**:
+  - Aozora Bunko format: `｜漢字《かんじ》` or `漢字《かんじ》`
+  - Preview: Displays as HTML ruby tags
+  - EPUB: Full ruby support with `<ruby>` tags
+  - PDF: Falls back to parentheses format `漢字(かんじ)`
+- **VIM Marks Persistence**:
+  - Local marks (a-z) are now preserved when switching between files
+  - Use `ma` to set mark, `` `a `` or `'a` to jump back
+  - `:marks` to view all marks in current file
+- **UI Improvements**:
+  - `:` key on file tab list now enters VIM command mode (focuses editor)
+  - New files are now created empty (no placeholder text)
+
 ### v0.5.1
 - **VIM Mode IME Enhancement**:
   - Support IME input for `f`/`F`/`t`/`T` character search commands

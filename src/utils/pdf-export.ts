@@ -4,6 +4,7 @@
  */
 
 import { loadPdfFonts } from './storage';
+import { convertRubyToPlainText } from './markdown';
 
 // pdfmake CDN URLs
 const PDFMAKE_CDN = {
@@ -165,8 +166,11 @@ function parseMarkdownToPdfContent(
   chapterIndex: number,
   tocDepth: number = 2
 ): ParsedChapter {
+  // Convert ruby notation to plain text (parentheses format) for PDF
+  const rubyConverted = convertRubyToPlainText(markdown);
+  
   // Remove emojis from the entire markdown before processing
-  const cleanedMarkdown = removeEmojis(markdown);
+  const cleanedMarkdown = removeEmojis(rubyConverted);
   
   // Detect special page types
   const { isChapterTitlePage, isColophon } = detectSpecialPage(cleanedMarkdown);

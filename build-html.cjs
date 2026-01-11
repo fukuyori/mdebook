@@ -5,6 +5,12 @@
 const fs = require('fs');
 const path = require('path');
 
+// Read version from constants
+const constantsPath = path.join(__dirname, 'src', 'constants', 'index.ts');
+const constantsContent = fs.readFileSync(constantsPath, 'utf8');
+const versionMatch = constantsContent.match(/VERSION\s*=\s*['"]([^'"]+)['"]/);
+const VERSION = versionMatch ? versionMatch[1] : '0.0.0';
+
 // Read the built IIFE bundle (instead of UMD to avoid AMD conflicts)
 const bundlePath = path.join(__dirname, 'dist', 'mdebook.iife.js');
 const bundle = fs.readFileSync(bundlePath, 'utf8');
@@ -22,7 +28,7 @@ const html = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MDebook v0.4 - Markdown eBook Editor</title>
+  <title>MDebook v${VERSION} - Markdown eBook Editor</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>

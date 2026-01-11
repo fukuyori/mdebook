@@ -16,6 +16,37 @@ declare const hljs: {
 };
 
 /**
+ * Convert ruby notation to HTML ruby tags (Aozora Bunko format)
+ * Supports: ｜漢字《かんじ》 and 漢字《かんじ》 (auto-detect kanji)
+ */
+export function convertRubyToHtml(text: string): string {
+  // Pattern 1: ｜base《ruby》 - explicit ruby start marker
+  // The ｜ (full-width vertical bar) marks the start of the base text
+  let result = text.replace(/｜([^《]+)《([^》]+)》/g, '<ruby>$1<rp>(</rp><rt>$2</rt><rp>)</rp></ruby>');
+  
+  // Pattern 2: 漢字《ruby》 - auto-detect kanji (when no ｜ marker)
+  // Match continuous kanji characters followed by 《ruby》
+  // Kanji range: \u4E00-\u9FFF (CJK Unified Ideographs)
+  result = result.replace(/([\u4E00-\u9FFF]+)《([^》]+)》/g, '<ruby>$1<rp>(</rp><rt>$2</rt><rp>)</rp></ruby>');
+  
+  return result;
+}
+
+/**
+ * Convert ruby notation to plain text with parentheses (for PDF fallback)
+ * 蛋粉《たんぷん》 → 蛋粉(たんぷん)
+ */
+export function convertRubyToPlainText(text: string): string {
+  // Pattern 1: ｜base《ruby》
+  let result = text.replace(/｜([^《]+)《([^》]+)》/g, '$1($2)');
+  
+  // Pattern 2: 漢字《ruby》
+  result = result.replace(/([\u4E00-\u9FFF]+)《([^》]+)》/g, '$1($2)');
+  
+  return result;
+}
+
+/**
  * Parse markdown to HTML
  */
 export function parseMarkdown(markdown: string): string {
@@ -545,6 +576,9 @@ export async function convertToXhtml(
   
   // Process tables
   processedMarkdown = processTablesInMarkdown(processedMarkdown);
+  
+  // Convert ruby notation before parsing
+  processedMarkdown = convertRubyToHtml(processedMarkdown);
   
   // Parse to HTML
   let html = parseMarkdown(processedMarkdown);

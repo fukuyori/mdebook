@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { UILanguage, EditorFile, BookMetadata, ExportFormat, ProjectImage } from '../types';
 import { getTranslations, getSampleMarkdown, getColophonTemplate, getPrefaceTemplate, getChapterTitleTemplate, getBibliographyTemplate, getSavedLanguage, saveLanguage, LANGUAGE_NAMES, SUPPORTED_LANGUAGES } from '../i18n/translations';
 import { VERSION } from '../constants';
@@ -70,6 +70,7 @@ export const App: React.FC = () => {
   
   // File handle for overwrite saves
   const fileHandleRef = useRef<FileSystemFileHandle | null>(null);
+  const [savedFileName, setSavedFileName] = useState<string | null>(null);
   
   // UI state - load saved language or detect from browser
   const [uiLang, setUiLang] = useState<UILanguage>(getSavedLanguage);
@@ -114,6 +115,13 @@ export const App: React.FC = () => {
     projectId: string;
   } | null>(null);
   
+  // Header path display width (resizable)
+  const [pathDisplayWidth, setPathDisplayWidth] = useState(() => {
+    const saved = localStorage.getItem('mdebook-path-display-width');
+    return saved ? parseInt(saved) : 300;
+  });
+  const isResizingRef = useRef(false);
+  
   // Metadata
   const [metadata, setMetadata] = useState<BookMetadata>({
     title: 'My eBook',
@@ -139,6 +147,12 @@ export const App: React.FC = () => {
   // Editor focus
   const editorFocusRef = useRef<(() => void) | null>(null);
   
+  // VIM marks management - store marks per file
+  const [fileMarks, setFileMarks] = useState<Map<string, Record<string, { line: number; ch: number }>>>(new Map());
+  const getMarksRef = useRef<(() => Record<string, { line: number; ch: number }>) | null>(null);
+  const setMarksRef = useRef<((marks: Record<string, { line: number; ch: number }>) => void) | null>(null);
+  const prevActiveFileIdRef = useRef<string | null>(null);
+  
   // Focus editor helper
   const focusEditor = useCallback(() => {
     // Small delay to allow UI to update first
@@ -146,6 +160,78 @@ export const App: React.FC = () => {
       editorFocusRef.current?.();
     }, 10);
   }, []);
+  
+  // Path display resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    const startX = e.clientX;
+    const startWidth = pathDisplayWidth;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const delta = e.clientX - startX;
+      const newWidth = Math.max(100, Math.min(600, startWidth + delta));
+      setPathDisplayWidth(newWidth);
+    };
+    
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      localStorage.setItem('mdebook-path-display-width', pathDisplayWidth.toString());
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [pathDisplayWidth]);
+  
+  // Double-click to auto-fit path display width
+  const handlePathDoubleClick = useCallback(() => {
+    // Reset to default or auto-fit
+    const newWidth = 300;
+    setPathDisplayWidth(newWidth);
+    localStorage.setItem('mdebook-path-display-width', newWidth.toString());
+  }, []);
+  
+  // Get project name from saved file name or metadata
+  const projectName = useMemo(() => {
+    if (savedFileName) {
+      return savedFileName;
+    }
+    return metadata.title ? `${metadata.title}.mdebook` : t.untitled;
+  }, [savedFileName, metadata.title, t.untitled]);
+  
+  // Save and restore VIM marks when switching files
+  useEffect(() => {
+    if (!vimEnabled) return;
+    
+    const prevFileId = prevActiveFileIdRef.current;
+    
+    // Save marks from previous file
+    if (prevFileId && prevFileId !== activeFileId && getMarksRef.current) {
+      const currentMarks = getMarksRef.current();
+      if (Object.keys(currentMarks).length > 0) {
+        setFileMarks(prev => {
+          const newMarks = new Map(prev);
+          newMarks.set(prevFileId, currentMarks);
+          return newMarks;
+        });
+      }
+    }
+    
+    // Restore marks for new file (with delay to ensure editor is ready)
+    if (activeFileId && setMarksRef.current) {
+      setTimeout(() => {
+        const savedMarks = fileMarks.get(activeFileId);
+        if (savedMarks && setMarksRef.current) {
+          setMarksRef.current(savedMarks);
+        }
+      }, 50);
+    }
+    
+    prevActiveFileIdRef.current = activeFileId;
+  }, [activeFileId, vimEnabled, fileMarks]);
   
   // Auto-save timer
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -321,11 +407,11 @@ export const App: React.FC = () => {
     const newFile: EditorFile = {
       id: newId,
       name: `${t.defaultFileName}${files.length + 1}.md`,
-      content: `# ${t.newChapter}\n\n${t.writeContentHere}`,
+      content: '',  // Start with empty content
     };
     setFiles(prev => [...prev, newFile]);
     setActiveFileId(newId);
-  }, [files.length, t.defaultFileName, t.newChapter, t.writeContentHere]);
+  }, [files.length, t.defaultFileName]);
   
   // Add colophon template
   const addColophonTemplate = useCallback(() => {
@@ -481,6 +567,7 @@ export const App: React.FC = () => {
     setProjectId(data.projectId);
     setActiveFileId(data.files[0]?.id || '1');
     fileHandleRef.current = null; // Clear file handle for new project
+    setSavedFileName(null);
   }, []);
   
   // Handle drag start
@@ -553,6 +640,7 @@ export const App: React.FC = () => {
               projectId: newProjectId,
             });
             fileHandleRef.current = null;
+            setSavedFileName(null);
             setExportStatus(t.projectLoaded);
             setTimeout(() => setExportStatus(''), 2000);
             focusEditor();
@@ -663,6 +751,7 @@ export const App: React.FC = () => {
             projectId: newProjectId,
           });
           fileHandleRef.current = result.handle as FileSystemFileHandle;
+          setSavedFileName(result.handle?.name || null);
           setExportStatus(t.fileOpened);
           setTimeout(() => setExportStatus(''), 2000);
         }
@@ -709,11 +798,13 @@ export const App: React.FC = () => {
       const handle = await saveFileWithFSADialog(blob, filename, isProject);
       if (handle) {
         fileHandleRef.current = handle;
+        setSavedFileName(handle.name);
         setExportStatus(t.projectSaved);
         setTimeout(() => setExportStatus(''), 2000);
       }
     } else {
       saveFileFallback(blob, filename);
+      setSavedFileName(filename);
       setExportStatus(t.projectSaved);
       setTimeout(() => setExportStatus(''), 2000);
     }
@@ -752,11 +843,13 @@ export const App: React.FC = () => {
       const handle = await saveFileWithFSADialog(blob, defaultName, isProject);
       if (handle) {
         fileHandleRef.current = handle;
+        setSavedFileName(handle.name);
         setExportStatus(t.projectSaved);
         setTimeout(() => setExportStatus(''), 2000);
       }
     } else {
       saveFileFallback(blob, defaultName);
+      setSavedFileName(defaultName);
       setExportStatus(t.projectSaved);
       setTimeout(() => setExportStatus(''), 2000);
     }
@@ -918,6 +1011,7 @@ export const App: React.FC = () => {
             projectId: newProjectId,
           });
           fileHandleRef.current = null; // Clear handle since we opened from drop
+          setSavedFileName(projectFile.name); // Use dropped file name
           setExportStatus(t.projectLoaded);
           setTimeout(() => setExportStatus(''), 2000);
           focusEditor();
@@ -1192,6 +1286,7 @@ export const App: React.FC = () => {
       coverImageId: undefined,
     }));
     fileHandleRef.current = null;
+    setSavedFileName(null);
     setExportStatus(`Created: ${newName}`);
     setTimeout(() => setExportStatus(''), 2000);
   }, [handleOpen]);
@@ -1218,6 +1313,7 @@ export const App: React.FC = () => {
       coverImageId: undefined,
     }));
     fileHandleRef.current = null;
+    setSavedFileName(null);
     setExportStatus(`Created: ${newName}`);
     setTimeout(() => setExportStatus(''), 2000);
   }, [handleOpen]);
@@ -1343,11 +1439,38 @@ export const App: React.FC = () => {
       {/* Header */}
       <header className={`flex items-center justify-between px-4 py-2 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-bold flex items-center gap-2">
+          <h1 className="text-lg font-bold flex items-center gap-2 flex-shrink-0">
             <Icons.Book size={20} />
             {t.appTitle}
             <span className="text-xs opacity-60">v{VERSION}</span>
           </h1>
+          {/* Project path: project name > tab name */}
+          <div 
+            className="flex items-center"
+            onDoubleClick={handlePathDoubleClick}
+            title={`${projectName} > ${activeFile?.name || ''}`}
+          >
+            <div 
+              className={`flex items-center text-sm px-2 py-0.5 rounded-l ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}
+              style={{ width: `${pathDisplayWidth}px` }}
+            >
+              <Icons.Folder size={12} className="flex-shrink-0 mr-1" />
+              <span className="truncate">{projectName}</span>
+              {activeFile && (
+                <>
+                  <span className="mx-1 opacity-50 flex-shrink-0">&gt;</span>
+                  <Icons.File size={12} className="flex-shrink-0 mr-1" />
+                  <span className="truncate">{activeFile.name}</span>
+                </>
+              )}
+            </div>
+            {/* Resize handle */}
+            <div
+              className={`w-1.5 h-6 cursor-col-resize rounded-r flex-shrink-0 ${isDark ? 'bg-gray-600 hover:bg-blue-500' : 'bg-gray-300 hover:bg-blue-400'}`}
+              onMouseDown={handleResizeStart}
+              title="Drag to resize"
+            />
+          </div>
         </div>
         
         {/* Toolbar */}
@@ -1690,7 +1813,27 @@ export const App: React.FC = () => {
       {/* Main content */}
       <main className="flex-1 flex overflow-hidden">
         {/* Vertical file tabs on the left */}
-        <div className={`w-48 flex-shrink-0 flex flex-col border-r ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+        <div 
+          className={`w-48 flex-shrink-0 flex flex-col border-r ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}
+          onKeyDown={(e) => {
+            // When : is pressed on tab list, focus editor and enter command mode
+            if (e.key === ':' && vimEnabled && editingFileId === null) {
+              e.preventDefault();
+              focusEditor();
+              // Simulate : key press to enter command mode
+              setTimeout(() => {
+                const event = new KeyboardEvent('keydown', {
+                  key: ':',
+                  code: 'Semicolon',
+                  shiftKey: true,
+                  bubbles: true,
+                });
+                document.querySelector('.cm-content')?.dispatchEvent(event);
+              }, 10);
+            }
+          }}
+          tabIndex={0}
+        >
           <div className="flex-1 overflow-y-auto py-2">
             {files.map(file => (
               <div
@@ -1847,6 +1990,9 @@ export const App: React.FC = () => {
               onVimQuit={handleVimQuit}
               onVimImport={handleVimImport}
               onImageAdd={handleImageAdd}
+              fileId={activeFileId}
+              getMarksRef={getMarksRef}
+              setMarksRef={setMarksRef}
             />
           )}
         </div>

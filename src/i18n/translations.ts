@@ -25,6 +25,7 @@ export interface TranslationStrings {
   open: string;
   save: string;
   newFile: string;
+  untitled: string;
   
   // Settings
   title: string;
@@ -189,6 +190,7 @@ export const en: TranslationStrings = {
   open: 'Open',
   save: 'Save',
   newFile: 'New File',
+  untitled: 'Untitled',
   
   // Settings
   title: 'Title',
@@ -353,6 +355,7 @@ export const ja: TranslationStrings = {
   open: '開く',
   save: '保存',
   newFile: '新規ファイル',
+  untitled: '無題',
   
   // Settings
   title: 'タイトル',
@@ -517,6 +520,7 @@ export const zh: TranslationStrings = {
   open: '打开',
   save: '保存',
   newFile: '新建文件',
+  untitled: '未命名',
   
   // Settings
   title: '标题',
@@ -681,6 +685,7 @@ export const es: TranslationStrings = {
   open: 'Abrir',
   save: 'Guardar',
   newFile: 'Nuevo archivo',
+  untitled: 'Sin título',
   
   // Settings
   title: 'Título',
@@ -845,6 +850,7 @@ export const ko: TranslationStrings = {
   open: '열기',
   save: '저장',
   newFile: '새 파일',
+  untitled: '제목 없음',
   
   // Settings
   title: '제목',
