@@ -2,6 +2,7 @@
  * Project file operations (ZIP-based .mdebook format)
  */
 import type { EditorFile, BookMetadata, UILanguage, BookLanguage, ProjectImage, ProjectManifest, ProjectData } from '../types';
+import { readFileWithEncoding } from './encoding';
 
 // Declare JSZip (loaded via CDN)
 declare const JSZip: {
@@ -348,7 +349,7 @@ export async function openFileWithFSA(): Promise<{ handle: FileSystemFileHandle;
       const buffer = await file.arrayBuffer();
       data = await loadMdvimFile(buffer, file.name);
     } else {
-      const content = await file.text();
+      const content = await readFileWithEncoding(file);
       data = loadSingleMarkdown(content, file.name);
     }
     
@@ -394,7 +395,7 @@ export function openFileFallback(): Promise<ProjectData | null> {
           const data = await loadMdvimFile(buffer, file.name);
           resolve(data);
         } else {
-          const content = await file.text();
+          const content = await readFileWithEncoding(file);
           const data = loadSingleMarkdown(content, file.name);
           resolve(data);
         }
@@ -474,15 +475,81 @@ export function saveFileFallback(blob: Blob, filename: string): void {
 }
 
 /**
- * Add image to project from File
+ * Generate short hash from data
  */
-export async function addImageFromFile(file: File): Promise<ProjectImage> {
+async function generateShortHash(data: ArrayBuffer): Promise<string> {
+  try {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    // Take first 4 bytes (8 hex chars)
+    return hashArray.slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // Fallback: use random string
+    return Math.random().toString(36).substr(2, 8);
+  }
+}
+
+/**
+ * Sanitize filename for safe storage
+ * Removes special characters, keeps alphanumeric, underscore, hyphen
+ */
+function sanitizeFilename(name: string): string {
+  // Remove extension
+  const baseName = name.replace(/\.[^.]+$/, '');
+  // Replace spaces and special chars with underscore
+  const sanitized = baseName
+    .replace(/[^\w\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+  // Limit length
+  return sanitized.substring(0, 20) || 'image';
+}
+
+/**
+ * Get file extension from filename or mime type
+ */
+function getExtension(filename: string, mimeType: string): string {
+  // Try from filename first
+  const extMatch = filename.match(/\.([^.]+)$/);
+  if (extMatch) {
+    return extMatch[1].toLowerCase();
+  }
+  // Fallback to mime type
+  const mimeExtensions: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+  };
+  return mimeExtensions[mimeType] || 'png';
+}
+
+/**
+ * Add image to project from File
+ * Uses hybrid naming: basename_hash.ext
+ */
+export async function addImageFromFile(file: File, isPasted: boolean = false): Promise<ProjectImage> {
   const data = await file.arrayBuffer();
+  const hash = await generateShortHash(data);
+  const mimeType = file.type || getMimeType(file.name);
+  const ext = getExtension(file.name, mimeType);
+  
+  // Generate name: originalname_hash.ext or pasted_hash.ext
+  let baseName: string;
+  if (isPasted) {
+    baseName = 'pasted';
+  } else {
+    baseName = sanitizeFilename(file.name);
+  }
+  
+  const name = `${baseName}_${hash}.${ext}`;
+  
   return {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-    name: file.name,
+    name,
     data,
-    mimeType: file.type || getMimeType(file.name),
+    mimeType,
   };
 }
 

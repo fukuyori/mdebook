@@ -71,7 +71,7 @@ interface CodeMirrorEditorProps {
   onVimQuit?: () => void;              // :q
   onVimImport?: (arg?: string) => void; // :imp [file/url]
   // Image handling
-  onImageAdd?: (file: File) => Promise<string | null>; // Returns image reference string or null
+  onImageAdd?: (file: File, isPasted?: boolean) => Promise<string | null>; // Returns image reference string or null
   // VIM marks management
   fileId?: string;  // Current file ID for mark management
   getMarksRef?: React.MutableRefObject<(() => Record<string, { line: number; ch: number }>) | null>;
@@ -148,13 +148,13 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   }, [onVimEdit, onVimEditForce, onVimWrite, onVimWriteForce, onVimQuit, onVimImport, onImageAdd, onModeChange, vimEnabled]);
   
   // Ref for image handler (to avoid stale closures in domEventHandlers)
-  const handleImageFileRef = useRef<((file: File) => Promise<void>) | null>(null);
+  const handleImageFileRef = useRef<((file: File, isPasted?: boolean) => Promise<void>) | null>(null);
   
   // Handle image file (from paste or drop)
-  const handleImageFile = useCallback(async (file: File) => {
+  const handleImageFile = useCallback(async (file: File, isPasted: boolean = false) => {
     if (!onImageAddRef.current || !editorRef.current) return;
     
-    const imageRef = await onImageAddRef.current(file);
+    const imageRef = await onImageAddRef.current(file, isPasted);
     if (imageRef) {
       // Insert at cursor position
       const view = editorRef.current;
@@ -549,7 +549,7 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
               event.preventDefault();
               const file = item.getAsFile();
               if (file && handleImageFileRef.current) {
-                handleImageFileRef.current(file);
+                handleImageFileRef.current(file, true); // isPasted = true
               }
               return true;
             }

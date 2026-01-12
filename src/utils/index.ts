@@ -12,3 +12,6 @@ export * from './project';
 
 // Storage (IndexedDB) utilities
 export * from './storage';
+
+// Encoding detection utilities
+export * from './encoding';

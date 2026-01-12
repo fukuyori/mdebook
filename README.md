@@ -221,6 +221,13 @@ Files are automatically sorted for EPUB export:
 | `Esc` | Return to NORMAL mode |
 | `v`, `V` | VISUAL mode |
 | `hjkl` | Cursor movement |
+| `y`, `yy` | Yank (copy) |
+| `d`, `dd` | Delete (cut) |
+| `p`, `P` | Paste |
+| `"*y` | Copy to system clipboard |
+| `"*p` | Paste from system clipboard |
+| `"+y` | Copy to system clipboard (alias) |
+| `"+p` | Paste from system clipboard (alias) |
 | `:w` | Save (overwrite if file handle exists) |
 | `:w!` | Save with dialog |
 | `:w filename` | Save as filename |
@@ -304,12 +311,20 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
-### v0.5.4
+### v0.5.5
 - **Image & Mermaid Size Attributes**:
   - Specify image size with attribute syntax: `![alt](image.png){width=50%}`
   - Size attributes for Mermaid diagrams: `` ```mermaid {width=70% align=center} ``
   - Supported attributes: `width`, `height`, `max-width`, `max-height`, `align`
   - Applied in preview, EPUB, and HTML export
+- **Auto Encoding Detection**:
+  - Automatically detects Shift_JIS, EUC-JP, ISO-2022-JP (JIS) files
+  - Import non-UTF-8 text files without character corruption
+  - Normalizes line endings to LF
+- **VIM System Clipboard Support**:
+  - `"*y` / `"*yy` - Copy to system clipboard
+  - `"*p` / `"*P` - Paste from system clipboard
+  - `"+` register also supported
 
 ### v0.5.2
 - **Ruby (Furigana) Support**:

@@ -25,6 +25,8 @@ import {
   isVisualMode,
   getTextObject,
   findPrevWordEnd,
+  copyToClipboard,
+  pasteFromClipboard,
 } from '../utils/vim-helpers';
 
 // Initial VIM state
@@ -330,6 +332,10 @@ function applyOp(editor: IMonacoEditor, op: string, start: EditorPosition, end: 
   if (op === 'd' || op === 'c') {
     const { text, lines } = yankRange(editor, start.lineNumber, start.column, end.lineNumber, end.column);
     dispatch({ type: 'SET_REGISTER', payload: { ...state.register, [regName]: text, lines } });
+    // Copy to system clipboard for "* or "+ register
+    if (regName === '*' || regName === '+') {
+      copyToClipboard(text);
+    }
     deleteRange(editor, start.lineNumber, start.column, end.lineNumber, end.column);
     setPosition(editor, start.lineNumber, start.column);
     if (op === 'c') { setMode('INSERT'); editor.updateOptions({ cursorStyle: 'line' }); }
@@ -337,7 +343,13 @@ function applyOp(editor: IMonacoEditor, op: string, start: EditorPosition, end: 
   } else if (op === 'y') {
     const { text, lines } = yankRange(editor, start.lineNumber, start.column, end.lineNumber, end.column);
     dispatch({ type: 'SET_REGISTER', payload: { ...state.register, [regName]: text, lines } });
-    showMsg('Yanked', 1500);
+    // Copy to system clipboard for "* or "+ register
+    if (regName === '*' || regName === '+') {
+      copyToClipboard(text);
+      showMsg('Yanked to clipboard', 1500);
+    } else {
+      showMsg('Yanked', 1500);
+    }
   } else if (op === '>' || op === '<') {
     for (let i = Math.min(start.lineNumber, end.lineNumber); i <= Math.max(start.lineNumber, end.lineNumber); i++) indentLine(editor, i, op === '>' ? 1 : -1);
   }
@@ -377,6 +389,10 @@ function handleVisual(e: KeyboardEvent, editor: IMonacoEditor, state: VimState, 
       if (sel) {
         const { text, lines } = yankRange(editor, sel.startLineNumber, sel.startColumn, sel.endLineNumber, sel.endColumn);
         dispatch({ type: 'SET_REGISTER', payload: { ...state.register, [regRef.current]: text, lines } });
+        // Copy to system clipboard for "* or "+ register
+        if (regRef.current === '*' || regRef.current === '+') {
+          copyToClipboard(text);
+        }
         deleteRange(editor, sel.startLineNumber, sel.startColumn, sel.endLineNumber, sel.endColumn);
       }
       setMode('NORMAL'); regRef.current = '"';
@@ -388,6 +404,10 @@ function handleVisual(e: KeyboardEvent, editor: IMonacoEditor, state: VimState, 
       if (sel) {
         const { text, lines } = yankRange(editor, sel.startLineNumber, sel.startColumn, sel.endLineNumber, sel.endColumn);
         dispatch({ type: 'SET_REGISTER', payload: { ...state.register, [regRef.current]: text, lines } });
+        // Copy to system clipboard for "* or "+ register
+        if (regRef.current === '*' || regRef.current === '+') {
+          copyToClipboard(text);
+        }
         deleteRange(editor, sel.startLineNumber, sel.startColumn, sel.endLineNumber, sel.endColumn);
       }
       setMode('INSERT'); editor.updateOptions({ cursorStyle: 'line' }); regRef.current = '"';
@@ -398,7 +418,13 @@ function handleVisual(e: KeyboardEvent, editor: IMonacoEditor, state: VimState, 
       if (sel) {
         const { text, lines } = yankRange(editor, sel.startLineNumber, sel.startColumn, sel.endLineNumber, sel.endColumn);
         dispatch({ type: 'SET_REGISTER', payload: { ...state.register, [regRef.current]: text, lines } });
-        showMsg('Yanked', 1500);
+        // Copy to system clipboard for "* or "+ register
+        if (regRef.current === '*' || regRef.current === '+') {
+          copyToClipboard(text);
+          showMsg('Yanked to clipboard', 1500);
+        } else {
+          showMsg('Yanked', 1500);
+        }
       }
       setMode('NORMAL');
       editor.setSelection({ startLineNumber: pos.lineNumber, startColumn: pos.column, endLineNumber: pos.lineNumber, endColumn: pos.column });
@@ -886,6 +912,22 @@ function handleNormal(e: KeyboardEvent, editor: IMonacoEditor, state: VimState, 
   
   // Paste
   if (key === 'p') {
+    // For "* or "+ register, paste from system clipboard
+    if (regRef.current === '*' || regRef.current === '+') {
+      pasteFromClipboard().then(clipboardText => {
+        if (clipboardText) {
+          const hasNewline = clipboardText.includes('\n');
+          if (hasNewline) {
+            editor.executeEdits('vim', [{ range: { startLineNumber: pos.lineNumber, startColumn: content.length + 1, endLineNumber: pos.lineNumber, endColumn: content.length + 1 }, text: '\n' + clipboardText.replace(/\n$/, '') }]);
+            setPosition(editor, pos.lineNumber + 1, findFirstNonWhitespace(clipboardText.split('\n')[0] || ''));
+          } else {
+            editor.executeEdits('vim', [{ range: { startLineNumber: pos.lineNumber, startColumn: pos.column + 1, endLineNumber: pos.lineNumber, endColumn: pos.column + 1 }, text: clipboardText }]);
+          }
+        }
+      });
+      regRef.current = '"';
+      return true;
+    }
     const rVal = state.register[regRef.current] || state.register['"'];
     const r = typeof rVal === 'string' ? rVal : '';
     if (r) {
@@ -900,6 +942,22 @@ function handleNormal(e: KeyboardEvent, editor: IMonacoEditor, state: VimState, 
     return true;
   }
   if (key === 'P') {
+    // For "* or "+ register, paste from system clipboard
+    if (regRef.current === '*' || regRef.current === '+') {
+      pasteFromClipboard().then(clipboardText => {
+        if (clipboardText) {
+          const hasNewline = clipboardText.includes('\n');
+          if (hasNewline) {
+            editor.executeEdits('vim', [{ range: { startLineNumber: pos.lineNumber, startColumn: 1, endLineNumber: pos.lineNumber, endColumn: 1 }, text: clipboardText.replace(/\n$/, '') + '\n' }]);
+            setPosition(editor, pos.lineNumber, findFirstNonWhitespace(clipboardText.split('\n')[0] || ''));
+          } else {
+            editor.executeEdits('vim', [{ range: { startLineNumber: pos.lineNumber, startColumn: pos.column, endLineNumber: pos.lineNumber, endColumn: pos.column }, text: clipboardText }]);
+          }
+        }
+      });
+      regRef.current = '"';
+      return true;
+    }
     const rVal = state.register[regRef.current] || state.register['"'];
     const r = typeof rVal === 'string' ? rVal : '';
     if (r) {

@@ -424,6 +424,46 @@ export function yankRange(
 }
 
 /**
+ * Copy text to system clipboard
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    console.warn('Failed to copy to clipboard:', e);
+    // Fallback for older browsers
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return true;
+    } catch (e2) {
+      console.error('Clipboard fallback failed:', e2);
+      return false;
+    }
+  }
+}
+
+/**
+ * Paste text from system clipboard
+ */
+export async function pasteFromClipboard(): Promise<string | null> {
+  try {
+    const text = await navigator.clipboard.readText();
+    return text;
+  } catch (e) {
+    console.warn('Failed to read from clipboard:', e);
+    return null;
+  }
+}
+
+/**
  * Calculate scroll amount for page movements
  */
 export function getScrollAmount(editor: IMonacoEditor, fraction: number = 1): number {

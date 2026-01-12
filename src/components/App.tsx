@@ -40,6 +40,9 @@ import {
   loadPdfFonts,
   deletePdfFont,
   type StoredFont,
+  // Encoding utilities
+  readFileWithEncoding,
+  readResponseWithEncoding,
 } from '../utils';
 import CodeMirrorEditor from './CodeMirrorEditor';
 import Preview from './Preview';
@@ -663,7 +666,7 @@ export const App: React.FC = () => {
         const importedFiles: EditorFile[] = [];
         
         for (const file of markdownFiles) {
-          const content = await file.text();
+          const content = await readFileWithEncoding(file);
           const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
           importedFiles.push({ id: newId, name: file.name, content });
         }
@@ -922,7 +925,7 @@ export const App: React.FC = () => {
           }
         } else {
           // Import markdown file
-          const content = await file.text();
+          const content = await readFileWithEncoding(file);
           const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
           importedFiles.push({ id: newId, name: file.name, content });
         }
@@ -1116,7 +1119,7 @@ export const App: React.FC = () => {
     const importedFiles: EditorFile[] = [];
     
     for (const file of markdownFiles) {
-      const content = await file.text();
+      const content = await readFileWithEncoding(file);
       const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
       importedFiles.push({ id: newId, name: file.name, content });
     }
@@ -1172,7 +1175,7 @@ export const App: React.FC = () => {
       try {
         response = await fetch(processedUrl);
         if (response.ok) {
-          content = await response.text();
+          content = await readResponseWithEncoding(response);
         }
       } catch {
         // Direct fetch failed, try proxies
@@ -1190,7 +1193,7 @@ export const App: React.FC = () => {
             const proxyUrl = getProxyUrl(processedUrl);
             response = await fetch(proxyUrl);
             if (response.ok) {
-              content = await response.text();
+              content = await readResponseWithEncoding(response);
               break;
             }
           } catch {
@@ -1231,9 +1234,9 @@ export const App: React.FC = () => {
   }, [importUrl, t.importComplete, t.importError, activeFileId]);
   
   // Add image to project (returns image reference for insertion)
-  const handleImageAdd = useCallback(async (file: File): Promise<string | null> => {
+  const handleImageAdd = useCallback(async (file: File, isPasted: boolean = false): Promise<string | null> => {
     try {
-      const image = await addImageFromFile(file);
+      const image = await addImageFromFile(file, isPasted);
       setImages(prev => [...prev, image]);
       setExportStatus(t.imageAdded);
       setTimeout(() => setExportStatus(''), 2000);
