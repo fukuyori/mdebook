@@ -304,7 +304,7 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
-### v0.5.3
+### v0.5.4
 - **Image & Mermaid Size Attributes**:
   - Specify image size with attribute syntax: `![alt](image.png){width=50%}`
   - Size attributes for Mermaid diagrams: `` ```mermaid {width=70% align=center} ``

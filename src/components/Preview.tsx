@@ -16,7 +16,7 @@ export interface PreviewProps {
 
 /**
  * Process mermaid blocks with attribute support for preview
- * Converts to a special marker that preserves attributes through markdown parsing
+ * Uses unique text markers that survive markdown parsing
  */
 function processMermaidWithAttributes(content: string): { processed: string; blocks: Map<string, { code: string; style: string }> } {
   const blocks = new Map<string, { code: string; style: string }>();
@@ -36,14 +36,32 @@ function processMermaidWithAttributes(content: string): { processed: string; blo
     if (attrs.align === 'center') styles.push('margin-left:auto', 'margin-right:auto');
     else if (attrs.align === 'right') styles.push('margin-left:auto', 'margin-right:0');
     
-    const id = `mermaid-placeholder-${counter++}`;
+    const id = `mermaid-block-${counter++}`;
     blocks.set(id, { code: code.trim(), style: styles.join(';') });
     
-    // Return a div placeholder that will be replaced after rendering
-    return `<div class="mermaid-placeholder" data-mermaid-id="${id}" data-mermaid-style="${styles.join(';')}"></div>`;
+    // Use a unique marker that won't be modified by markdown parser
+    // Format: <!--MERMAID:id:style-->
+    const encodedStyle = encodeURIComponent(styles.join(';'));
+    return `\n\n<!--MERMAID_PLACEHOLDER:${id}:${encodedStyle}-->\n\n`;
   });
   
   return { processed, blocks };
+}
+
+/**
+ * Replace mermaid placeholders with actual placeholder divs after markdown parsing
+ */
+function replaceMermaidPlaceholders(html: string): string {
+  // Replace HTML comment markers with actual div placeholders
+  // Pattern: <!--MERMAID_PLACEHOLDER:id:encodedStyle-->
+  // encodedStyle is URL-encoded (contains letters, numbers, %, and some special chars)
+  return html.replace(
+    /<!--MERMAID_PLACEHOLDER:([\w-]+):([A-Za-z0-9%.-]*)-->/g,
+    (match, id, encodedStyle) => {
+      const style = decodeURIComponent(encodedStyle || '');
+      return `<div class="mermaid-placeholder" data-mermaid-id="${id}" data-mermaid-style="${style}"></div>`;
+    }
+  );
 }
 
 /**
@@ -114,6 +132,8 @@ export const Preview: React.FC<PreviewProps> = ({
       processed = convertRubyToHtml(processed);
       // Parse markdown
       let parsed = parseMarkdown(processed);
+      // Replace mermaid placeholders (HTML comments -> div elements)
+      parsed = replaceMermaidPlaceholders(parsed);
       // Replace image URLs
       parsed = replaceImageUrls(parsed);
       setHtml(parsed);
