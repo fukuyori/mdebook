@@ -59,6 +59,7 @@ Supported types: `note`, `warning`, `tip`, `info`, `caution`, `important`
 - Mermaid diagrams (PNG conversion for EPUB)
 - Footnotes
 - Image embedding (paste, drag-drop, file picker)
+- **Image/Mermaid Size Attributes**: `{width=50% align=center}` syntax
 
 ### User Experience
 - **5 Languages**: English, 日本語, 简体中文, Español, 한국어
@@ -302,6 +303,13 @@ project.mdebook (ZIP)
 **Note**: IndexedDB (for font storage) may be restricted in `file://` protocol on some browsers. Use a local server or Chrome for best results.
 
 ## 📝 Changelog
+
+### v0.5.3
+- **Image & Mermaid Size Attributes**:
+  - Specify image size with attribute syntax: `![alt](image.png){width=50%}`
+  - Size attributes for Mermaid diagrams: `` ```mermaid {width=70% align=center} ``
+  - Supported attributes: `width`, `height`, `max-width`, `max-height`, `align`
+  - Applied in preview, EPUB, and HTML export
 
 ### v0.5.2
 - **Ruby (Furigana) Support**:

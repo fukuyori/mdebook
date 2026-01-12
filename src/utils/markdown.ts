@@ -16,6 +16,127 @@ declare const hljs: {
 };
 
 /**
+ * Image/Mermaid size attributes
+ */
+export interface MediaAttributes {
+  width?: string;
+  height?: string;
+  maxWidth?: string;
+  maxHeight?: string;
+  align?: 'left' | 'center' | 'right';
+}
+
+/**
+ * Parse media attributes from {width=50% height=auto} style string
+ * Supports: width, height, max-width, max-height, align
+ */
+export function parseMediaAttributes(attrString: string | undefined): MediaAttributes {
+  const attrs: MediaAttributes = {};
+  if (!attrString) return attrs;
+  
+  // Remove curly braces if present
+  const cleanStr = attrString.replace(/^\{|\}$/g, '').trim();
+  if (!cleanStr) return attrs;
+  
+  // Parse key=value pairs
+  // Supports: width=50%, height=200px, max-width=600px, align=center
+  const regex = /([\w-]+)=([^\s}]+)/g;
+  let match;
+  
+  while ((match = regex.exec(cleanStr)) !== null) {
+    const key = match[1].toLowerCase();
+    const value = match[2];
+    
+    switch (key) {
+      case 'width':
+      case 'w':
+        attrs.width = value;
+        break;
+      case 'height':
+      case 'h':
+        attrs.height = value;
+        break;
+      case 'max-width':
+      case 'maxwidth':
+        attrs.maxWidth = value;
+        break;
+      case 'max-height':
+      case 'maxheight':
+        attrs.maxHeight = value;
+        break;
+      case 'align':
+        if (['left', 'center', 'right'].includes(value)) {
+          attrs.align = value as 'left' | 'center' | 'right';
+        }
+        break;
+    }
+  }
+  
+  return attrs;
+}
+
+/**
+ * Convert MediaAttributes to CSS style string
+ */
+export function mediaAttributesToStyle(attrs: MediaAttributes): string {
+  const styles: string[] = [];
+  
+  if (attrs.width) styles.push(`width:${attrs.width}`);
+  if (attrs.height) styles.push(`height:${attrs.height}`);
+  if (attrs.maxWidth) styles.push(`max-width:${attrs.maxWidth}`);
+  if (attrs.maxHeight) styles.push(`max-height:${attrs.maxHeight}`);
+  
+  return styles.join(';');
+}
+
+/**
+ * Convert MediaAttributes to wrapper style for alignment
+ */
+export function mediaAttributesToWrapperStyle(attrs: MediaAttributes): string {
+  if (!attrs.align) return '';
+  
+  switch (attrs.align) {
+    case 'center':
+      return 'text-align:center;display:block;';
+    case 'right':
+      return 'text-align:right;display:block;';
+    case 'left':
+    default:
+      return 'text-align:left;display:block;';
+  }
+}
+
+/**
+ * Process images with size attributes in markdown
+ * Converts: ![alt](src){width=50% align=center} 
+ * To: <div style="text-align:center"><img src="src" alt="alt" style="width:50%"/></div>
+ */
+export function processImageAttributes(content: string): string {
+  // Match: ![alt](src){attrs} or ![alt](src "title"){attrs}
+  // Also handle images without attributes
+  const imageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{([^}]+)\})?/g;
+  
+  return content.replace(imageRegex, (match, alt, src, title, attrStr) => {
+    const attrs = parseMediaAttributes(attrStr);
+    const style = mediaAttributesToStyle(attrs);
+    const wrapperStyle = mediaAttributesToWrapperStyle(attrs);
+    
+    // Build img tag
+    let imgTag = `<img src="${src}" alt="${alt || ''}"`;
+    if (title) imgTag += ` title="${title}"`;
+    if (style) imgTag += ` style="${style}"`;
+    imgTag += '/>';
+    
+    // Wrap if alignment specified
+    if (wrapperStyle) {
+      return `<div style="${wrapperStyle}">${imgTag}</div>`;
+    }
+    
+    return imgTag;
+  });
+}
+
+/**
  * Convert ruby notation to HTML ruby tags (Aozora Bunko format)
  * Supports: ｜漢字《かんじ》 and 漢字《かんじ》 (auto-detect kanji)
  */
@@ -496,6 +617,69 @@ export interface MermaidImageData {
 }
 
 /**
+ * Parse mermaid block with optional attributes
+ * Supports: ```mermaid {width=50% align=center}
+ */
+interface MermaidBlock {
+  original: string;
+  code: string;
+  attrs: MediaAttributes;
+}
+
+function parseMermaidBlocks(markdown: string): MermaidBlock[] {
+  // Match: ```mermaid or ```mermaid {attrs}
+  const mermaidRegex = /```mermaid(?:\s*\{([^}]+)\})?\n([\s\S]*?)```/g;
+  const blocks: MermaidBlock[] = [];
+  let match;
+  
+  while ((match = mermaidRegex.exec(markdown)) !== null) {
+    blocks.push({
+      original: match[0],
+      attrs: parseMediaAttributes(match[1]),
+      code: match[2],
+    });
+  }
+  
+  return blocks;
+}
+
+/**
+ * Generate style string for mermaid container
+ */
+function getMermaidContainerStyle(attrs: MediaAttributes, defaultMaxWidth?: number): string {
+  const styles: string[] = [];
+  
+  // Width
+  if (attrs.width) {
+    styles.push(`width:${attrs.width}`);
+  }
+  
+  // Max-width (use specified or default)
+  if (attrs.maxWidth) {
+    styles.push(`max-width:${attrs.maxWidth}`);
+  } else if (defaultMaxWidth && !attrs.width) {
+    styles.push(`max-width:${defaultMaxWidth}px`);
+  }
+  
+  // Height
+  if (attrs.height) {
+    styles.push(`height:${attrs.height}`);
+  }
+  if (attrs.maxHeight) {
+    styles.push(`max-height:${attrs.maxHeight}`);
+  }
+  
+  // Alignment
+  if (attrs.align === 'center') {
+    styles.push('margin-left:auto', 'margin-right:auto');
+  } else if (attrs.align === 'right') {
+    styles.push('margin-left:auto', 'margin-right:0');
+  }
+  
+  return styles.join(';');
+}
+
+/**
  * Convert markdown to XHTML for EPUB
  * Returns XHTML content and any generated mermaid images
  */
@@ -511,17 +695,8 @@ export async function convertToXhtml(
   // Normalize line endings
   const normalizedMarkdown = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   
-  // Process mermaid blocks first
-  const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
-  const mermaidBlocks: Array<{ original: string; code: string }> = [];
-  let match;
-  
-  while ((match = mermaidRegex.exec(normalizedMarkdown)) !== null) {
-    mermaidBlocks.push({
-      original: match[0],
-      code: match[1],
-    });
-  }
+  // Process mermaid blocks first (with attribute support)
+  const mermaidBlocks = parseMermaidBlocks(normalizedMarkdown);
   
   // Replace mermaid blocks with SVGs or PNGs
   let processedMarkdown = normalizedMarkdown;
@@ -536,10 +711,14 @@ export async function convertToXhtml(
       if (pngResult) {
         const imageId = `mermaid-${Date.now()}-${i}`;
         mermaidImages.push({ id: imageId, base64: pngResult.base64 });
-        // Include width for proper display (height auto-scales)
+        
+        // Build style from attributes
+        const imgStyle = getMermaidContainerStyle(block.attrs, pngResult.width);
+        const finalStyle = imgStyle ? `style="${imgStyle};height:auto;"` : `style="width:100%;max-width:${pngResult.width}px;height:auto;"`;
+        
         processedMarkdown = processedMarkdown.replace(
           block.original,
-          `<div class="mermaid"><img src="images/${imageId}.png" alt="Diagram" style="width:100%;max-width:${pngResult.width}px;height:auto;"/></div>`
+          `<div class="mermaid"><img src="images/${imageId}.png" alt="Diagram" ${finalStyle}/></div>`
         );
       } else {
         // Fallback: create error placeholder image
@@ -563,13 +742,19 @@ export async function convertToXhtml(
       // Render as SVG (for preview/HTML export)
       const svg = await renderMermaidToSvg(block.code);
       if (svg) {
+        // Apply size attributes to SVG wrapper
+        const containerStyle = getMermaidContainerStyle(block.attrs);
+        const styleAttr = containerStyle ? ` style="${containerStyle}"` : '';
         processedMarkdown = processedMarkdown.replace(
           block.original,
-          `<div class="mermaid">${svg}</div>`
+          `<div class="mermaid"${styleAttr}>${svg}</div>`
         );
       }
     }
   }
+  
+  // Process image attributes before other processing
+  processedMarkdown = processImageAttributes(processedMarkdown);
   
   // Process admonitions (:::note, :::warning, etc.)
   processedMarkdown = processAdmonitions(processedMarkdown);
@@ -658,7 +843,7 @@ export function highlightCodeBlocks(container: HTMLElement): void {
 }
 
 /**
- * Initialize mermaid diagrams in container
+ * Initialize mermaid diagrams in container (legacy, no attributes)
  */
 export async function initializeMermaidDiagrams(container: HTMLElement): Promise<void> {
   if (typeof mermaid === 'undefined') return;
@@ -670,6 +855,64 @@ export async function initializeMermaidDiagrams(container: HTMLElement): Promise
     code = decodeHtmlEntities(code.trim());
     
     // Skip empty code blocks
+    if (!code) continue;
+    
+    try {
+      const svg = await renderMermaidToSvg(code);
+      if (svg && diagram.parentElement) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-diagram';
+        wrapper.innerHTML = svg;
+        diagram.parentElement.replaceWith(wrapper);
+      }
+    } catch (error) {
+      console.warn('Mermaid diagram failed to render:', error);
+    }
+  }
+}
+
+/**
+ * Initialize mermaid diagrams with attribute support
+ * Used by Preview component with pre-extracted style information
+ */
+export async function initializeMermaidDiagramsWithAttributes(
+  container: HTMLElement,
+  blocks: Map<string, { code: string; style: string }>
+): Promise<void> {
+  if (typeof mermaid === 'undefined') return;
+  
+  // First, handle placeholder-based mermaid blocks (with attributes)
+  const placeholders = container.querySelectorAll('.mermaid-placeholder');
+  for (const placeholder of placeholders) {
+    const id = placeholder.getAttribute('data-mermaid-id');
+    const style = placeholder.getAttribute('data-mermaid-style') || '';
+    
+    if (!id || !blocks.has(id)) continue;
+    
+    const block = blocks.get(id)!;
+    
+    try {
+      const svg = await renderMermaidToSvg(block.code);
+      if (svg) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-diagram';
+        if (style || block.style) {
+          wrapper.setAttribute('style', style || block.style);
+        }
+        wrapper.innerHTML = svg;
+        placeholder.replaceWith(wrapper);
+      }
+    } catch (error) {
+      console.warn('Mermaid diagram failed to render:', error);
+    }
+  }
+  
+  // Then, handle standard mermaid code blocks (without attributes)
+  const diagrams = container.querySelectorAll('.language-mermaid');
+  for (const diagram of diagrams) {
+    let code = diagram.textContent || '';
+    code = decodeHtmlEntities(code.trim());
+    
     if (!code) continue;
     
     try {

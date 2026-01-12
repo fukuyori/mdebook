@@ -261,12 +261,62 @@ The status bar shows the current VIM mode:
 1. Click the image icon in the toolbar
 2. Select an image file
 
+### Specifying Image Size
+
+Add `{}` attributes after the image to specify size:
+
+```markdown
+![Photo](images/photo.png){width=50%}
+![Diagram](images/diagram.png){width=300px height=200px}
+![Logo](images/logo.png){width=100px align=center}
+![Banner](images/banner.png){max-width=600px align=right}
+```
+
+**Supported Attributes:**
+
+| Attribute | Description | Example |
+|-----------|-------------|---------|
+| `width` | Set width | `width=50%`, `width=300px` |
+| `height` | Set height | `height=200px` |
+| `max-width` | Set maximum width | `max-width=600px` |
+| `max-height` | Set maximum height | `max-height=400px` |
+| `align` | Set alignment | `align=left`, `align=center`, `align=right` |
+
+**Shorthand:**
+- `w` is shorthand for `width`
+- `h` is shorthand for `height`
+
+```markdown
+![Image](images/img.png){w=50% h=auto}
+```
+
 ### Image Storage
 
 - Images are stored within the project
 - Referenced as `![alt](images/image-id)`
 - Automatically included when saving as `.mdebook`
 - Unreferenced images are cleaned up on manual save
+
+---
+
+## Mermaid Diagram Size Attributes
+
+Mermaid diagrams also support the same attributes:
+
+````markdown
+```mermaid {width=70% align=center}
+graph LR
+    A[Start] --> B[Process]
+    B --> C[End]
+```
+
+```mermaid {max-width=500px}
+pie title Sales Breakdown
+    "Product A" : 45
+    "Product B" : 30
+    "Services" : 25
+```
+````
 
 ---
 

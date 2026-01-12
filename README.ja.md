@@ -59,6 +59,7 @@ VIMキーバインド、多言語対応、EPUB/PDF/HTML/Markdownエクスポー�
 - Mermaidダイアグラム（EPUB用PNG変換）
 - 脚注
 - 画像埋め込み（ペースト、ドラッグ&ドロップ、ファイル選択）
+- **画像/Mermaidサイズ指定**: `{width=50% align=center}` 属性構文
 
 ### ユーザーエクスペリエンス
 - **5言語対応**: English, 日本語, 简体中文, Español, 한국어
@@ -302,6 +303,13 @@ project.mdebook (ZIP)
 **注意**: IndexedDB（フォント保存用）は一部のブラウザで`file://`プロトコルでは制限される場合があります。最良の結果を得るにはローカルサーバーまたはChromeを使用してください。
 
 ## 📝 変更履歴
+
+### v0.5.3
+- **画像・Mermaidサイズ指定**:
+  - 画像に属性構文でサイズ指定: `![alt](image.png){width=50%}`
+  - Mermaidダイアグラムにサイズ指定: `` ```mermaid {width=70% align=center} ``
+  - 対応属性: `width`, `height`, `max-width`, `max-height`, `align`
+  - プレビュー、EPUB、HTMLエクスポートで反映
 
 ### v0.5.2
 - **ルビ（ふりがな）対応**:

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { parseMarkdown, highlightCodeBlocks, initializeMermaidDiagrams, convertRubyToHtml } from '../utils';
+import { parseMarkdown, highlightCodeBlocks, initializeMermaidDiagramsWithAttributes, convertRubyToHtml, processImageAttributes, parseMediaAttributes, mediaAttributesToStyle } from '../utils';
 import { PREVIEW_DEBOUNCE_MS } from '../constants';
 
 /**
@@ -12,6 +12,38 @@ export interface PreviewProps {
   onScroll?: (scrollRatio: number) => void;
   scrollToRef?: React.MutableRefObject<((ratio: number) => void) | null>;
   imageUrls?: Map<string, string>; // Map of image name to object URL
+}
+
+/**
+ * Process mermaid blocks with attribute support for preview
+ * Converts to a special marker that preserves attributes through markdown parsing
+ */
+function processMermaidWithAttributes(content: string): { processed: string; blocks: Map<string, { code: string; style: string }> } {
+  const blocks = new Map<string, { code: string; style: string }>();
+  let counter = 0;
+  
+  // Match: ```mermaid or ```mermaid {attrs}
+  const mermaidRegex = /```mermaid(?:\s*\{([^}]+)\})?\n([\s\S]*?)```/g;
+  
+  const processed = content.replace(mermaidRegex, (match, attrStr, code) => {
+    const attrs = parseMediaAttributes(attrStr);
+    const styles: string[] = [];
+    
+    if (attrs.width) styles.push(`width:${attrs.width}`);
+    if (attrs.maxWidth) styles.push(`max-width:${attrs.maxWidth}`);
+    if (attrs.height) styles.push(`height:${attrs.height}`);
+    if (attrs.maxHeight) styles.push(`max-height:${attrs.maxHeight}`);
+    if (attrs.align === 'center') styles.push('margin-left:auto', 'margin-right:auto');
+    else if (attrs.align === 'right') styles.push('margin-left:auto', 'margin-right:0');
+    
+    const id = `mermaid-placeholder-${counter++}`;
+    blocks.set(id, { code: code.trim(), style: styles.join(';') });
+    
+    // Return a div placeholder that will be replaced after rendering
+    return `<div class="mermaid-placeholder" data-mermaid-id="${id}" data-mermaid-style="${styles.join(';')}"></div>`;
+  });
+  
+  return { processed, blocks };
 }
 
 /**
@@ -29,6 +61,7 @@ export const Preview: React.FC<PreviewProps> = ({
   const [html, setHtml] = useState('');
   const debounceRef = useRef<NodeJS.Timeout>();
   const isScrollingRef = useRef(false);
+  const mermaidBlocksRef = useRef<Map<string, { code: string; style: string }>>(new Map());
   
   // Register scroll function to ref
   useEffect(() => {
@@ -71,9 +104,17 @@ export const Preview: React.FC<PreviewProps> = ({
     }
     
     debounceRef.current = setTimeout(() => {
-      // Convert ruby notation first
-      const rubyConverted = convertRubyToHtml(content);
-      let parsed = parseMarkdown(rubyConverted);
+      // Process mermaid blocks first and extract attributes
+      const { processed: mermaidProcessed, blocks } = processMermaidWithAttributes(content);
+      mermaidBlocksRef.current = blocks;
+      
+      // Process image attributes
+      let processed = processImageAttributes(mermaidProcessed);
+      // Convert ruby notation
+      processed = convertRubyToHtml(processed);
+      // Parse markdown
+      let parsed = parseMarkdown(processed);
+      // Replace image URLs
       parsed = replaceImageUrls(parsed);
       setHtml(parsed);
     }, PREVIEW_DEBOUNCE_MS);
@@ -90,7 +131,7 @@ export const Preview: React.FC<PreviewProps> = ({
   useEffect(() => {
     if (containerRef.current && html) {
       highlightCodeBlocks(containerRef.current);
-      initializeMermaidDiagrams(containerRef.current);
+      initializeMermaidDiagramsWithAttributes(containerRef.current, mermaidBlocksRef.current);
     }
   }, [html]);
 

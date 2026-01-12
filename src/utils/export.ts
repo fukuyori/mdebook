@@ -1,5 +1,5 @@
 import type { EditorFile, BookMetadata, EpubManifestItem, EpubSpineItem, EpubTocItem, ProjectImage } from '../types';
-import { convertToXhtml, processTablesInMarkdown, renderMermaidToSvg, parseMarkdown, type MermaidImageData } from './markdown';
+import { convertToXhtml, processTablesInMarkdown, renderMermaidToSvg, parseMarkdown, parseMediaAttributes, processImageAttributes, type MermaidImageData } from './markdown';
 import { EPUB_CONTAINER_XML, EPUB_MIMETYPE } from '../constants';
 import { getThemeCss, DEFAULT_THEME_ID, type ThemeId } from '../themes';
 
@@ -972,21 +972,34 @@ export async function exportHtml(
   for (const file of files) {
     let content = file.content;
     
-    // Process mermaid diagrams
-    const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
-    const mermaidBlocks: Array<{ original: string; code: string }> = [];
+    // Process mermaid diagrams with attribute support
+    const mermaidRegex = /```mermaid(?:\s*\{([^}]+)\})?\n([\s\S]*?)```/g;
+    const mermaidBlocks: Array<{ original: string; code: string; attrStr?: string }> = [];
     let match;
     
     while ((match = mermaidRegex.exec(content)) !== null) {
-      mermaidBlocks.push({ original: match[0], code: match[1] });
+      mermaidBlocks.push({ original: match[0], attrStr: match[1], code: match[2] });
     }
     
     for (const block of mermaidBlocks) {
       const svg = await renderMermaidToSvg(block.code);
       if (svg) {
-        content = content.replace(block.original, `<div class="mermaid">${svg}</div>`);
+        // Parse and apply attributes
+        const attrs = parseMediaAttributes(block.attrStr);
+        const styles: string[] = [];
+        if (attrs.width) styles.push(`width:${attrs.width}`);
+        if (attrs.maxWidth) styles.push(`max-width:${attrs.maxWidth}`);
+        if (attrs.height) styles.push(`height:${attrs.height}`);
+        if (attrs.align === 'center') styles.push('margin-left:auto', 'margin-right:auto');
+        else if (attrs.align === 'right') styles.push('margin-left:auto', 'margin-right:0');
+        
+        const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
+        content = content.replace(block.original, `<div class="mermaid"${styleAttr}>${svg}</div>`);
       }
     }
+    
+    // Process image attributes
+    content = processImageAttributes(content);
     
     // Process tables
     content = processTablesInMarkdown(content);
