@@ -65,6 +65,33 @@ function replaceEmbeddedImageRefs(xhtml: string, imageHrefs: Map<string, string>
   return updated;
 }
 
+async function fetchExternalImage(src: string): Promise<{ data: ArrayBuffer; mediaType: string } | null> {
+  const imageProxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(src.replace(/^https?:\/\//i, ''))}`;
+  const urls = [
+    src,
+    imageProxyUrl,
+    `https://corsproxy.io/?${encodeURIComponent(src)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(src)}`,
+  ];
+  
+  for (const url of urls) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      
+      const data = await response.arrayBuffer();
+      const mediaType = response.headers.get('content-type')?.split(';')[0].trim() || getMimeTypeFromUrl(src);
+      if (mediaType.startsWith('image/')) {
+        return { data, mediaType };
+      }
+    } catch {
+      // Try next URL.
+    }
+  }
+  
+  return null;
+}
+
 async function embedExternalImages(
   xhtml: string,
   imagesFolder: JSZipFolder | null | undefined,
@@ -106,14 +133,14 @@ async function embedExternalImages(
             data = new TextEncoder().encode(decodeURIComponent(payload)).buffer;
           }
         } else {
-          const response = await fetch(src);
-          if (!response.ok) {
+          const fetchedImage = await fetchExternalImage(src);
+          if (!fetchedImage) {
             failedImageSources.add(src);
             continue;
           }
           
-          data = await response.arrayBuffer();
-          mediaType = response.headers.get('content-type')?.split(';')[0].trim() || getMimeTypeFromUrl(src);
+          data = fetchedImage.data;
+          mediaType = fetchedImage.mediaType;
         }
       } catch (error) {
         console.warn('Failed to embed external image in EPUB:', src, error);
