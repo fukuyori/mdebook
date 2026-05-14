@@ -311,6 +311,15 @@ project.mdebook (ZIP)
 
 ## 📝 変更履歴
 
+### v0.6.0
+- **EPUB画像同梱**:
+  - Markdownから参照しているプロジェクト画像をEPUBファイル内に取り込み
+  - ブラウザで取得できる外部`https://...`画像と`data:image/...`画像もEPUB内に同梱
+  - 同梱画像のEPUB内参照とmanifest項目を自動生成
+- **依存関係のセキュリティ更新**:
+  - Vite、Vitest、React plugin、TypeScript ESLint関連を更新
+  - `npm audit`で脆弱性0件を確認
+
 ### v0.5.5
 - **画像・Mermaidサイズ指定**:
   - 画像に属性構文でサイズ指定: `![alt](image.png){width=50%}`

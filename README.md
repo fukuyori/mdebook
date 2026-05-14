@@ -311,6 +311,15 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
+### v0.6.0
+- **EPUB Embedded Images**:
+  - Project images referenced from Markdown are included inside the EPUB file
+  - External `https://...` and `data:image/...` images are embedded when the browser can fetch them
+  - EPUB image references and manifest entries are generated for bundled images
+- **Dependency Security Updates**:
+  - Updated Vite, Vitest, React plugin, and TypeScript ESLint dependencies
+  - `npm audit` reports 0 vulnerabilities
+
 ### v0.5.5
 - **Image & Mermaid Size Attributes**:
   - Specify image size with attribute syntax: `![alt](image.png){width=50%}`

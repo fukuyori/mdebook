@@ -31,6 +31,110 @@ function getExtensionFromMimeType(mimeType: string): string {
   return mimeToExt[mimeType] || '.bin';
 }
 
+function getMimeTypeFromUrl(url: string): string {
+  const lower = url.split('?')[0].split('#')[0].toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.svg')) return 'image/svg+xml';
+  return 'application/octet-stream';
+}
+
+function encodeEpubHref(path: string): string {
+  return path.split('/').map(part => encodeURIComponent(part)).join('/');
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function replaceEmbeddedImageRefs(xhtml: string, imageHrefs: Map<string, string>): string {
+  let updated = xhtml;
+  
+  for (const [imageName, href] of imageHrefs) {
+    const escapedName = escapeRegExp(imageName);
+    const encodedHref = encodeEpubHref(href);
+    
+    updated = updated.replace(
+      new RegExp(`(src=["'])images/${escapedName}(["'])`, 'g'),
+      `$1${encodedHref}$2`
+    );
+  }
+  
+  return updated;
+}
+
+async function embedExternalImages(
+  xhtml: string,
+  imagesFolder: JSZipFolder | null | undefined,
+  manifestItems: EpubManifestItem[],
+  imageCache: Map<string, { href: string; mediaType: string }>
+): Promise<string> {
+  const srcRegex = /src=(["'])(https?:\/\/[^"']+|data:image\/[^"']+)\1/g;
+  const replacements: Array<{ src: string; href: string }> = [];
+  let match: RegExpExecArray | null;
+  
+  while ((match = srcRegex.exec(xhtml)) !== null) {
+    const src = match[2];
+    
+    if (!imageCache.has(src)) {
+      const imageIndex = imageCache.size;
+      let data: ArrayBuffer;
+      let mediaType: string;
+      
+      if (src.startsWith('data:')) {
+        const dataUrlMatch = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(src);
+        if (!dataUrlMatch) continue;
+        
+        mediaType = dataUrlMatch[1];
+        const payload = dataUrlMatch[3];
+        if (dataUrlMatch[2]) {
+          const binary = atob(payload);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          data = bytes.buffer;
+        } else {
+          data = new TextEncoder().encode(decodeURIComponent(payload)).buffer;
+        }
+      } else {
+        const response = await fetch(src);
+        if (!response.ok) continue;
+        
+        data = await response.arrayBuffer();
+        mediaType = response.headers.get('content-type')?.split(';')[0].trim() || getMimeTypeFromUrl(src);
+      }
+      
+      if (!mediaType.startsWith('image/')) continue;
+      
+      const extension = getExtensionFromMimeType(mediaType);
+      const href = `images/external-${imageIndex}${extension}`;
+      imagesFolder?.file(href.replace(/^images\//, ''), data);
+      imageCache.set(src, { href, mediaType });
+      
+      manifestItems.push({
+        id: `external-image-${imageIndex}`,
+        href,
+        mediaType,
+      });
+    }
+    
+    const cached = imageCache.get(src);
+    if (cached) {
+      replacements.push({ src, href: cached.href });
+    }
+  }
+  
+  let updated = xhtml;
+  for (const { src, href } of replacements) {
+    updated = updated.replace(new RegExp(escapeRegExp(src), 'g'), href);
+  }
+  
+  return updated;
+}
+
 /**
  * Export as Markdown ZIP file
  */
@@ -223,14 +327,31 @@ export async function generateEpub(
   const coverImage = metadata.coverImageId 
     ? images.find(img => img.id === metadata.coverImageId)
     : undefined;
+  const coverFilename = coverImage ? `cover${getExtensionFromMimeType(coverImage.mimeType)}` : undefined;
+  
+  const imagesFolder = oebps?.folder('images');
+  const embeddedImageHrefs = new Map<string, string>();
+  const externalImageCache = new Map<string, { href: string; mediaType: string }>();
+  
+  // Add project images referenced from chapters to EPUB
+  for (let idx = 0; idx < images.length; idx++) {
+    const image = images[idx];
+    const href = `images/${image.name}`;
+    embeddedImageHrefs.set(image.name, href);
+    
+    imagesFolder?.file(image.name, image.data);
+    if (!(coverImage && image.id === coverImage.id && image.name === coverFilename)) {
+      manifestItems.push({
+        id: `image-${idx}`,
+        href: encodeEpubHref(href),
+        mediaType: image.mimeType,
+      });
+    }
+  }
   
   // Add cover image and cover page if cover exists
-  if (coverImage && oebps) {
-    const coverExt = getExtensionFromMimeType(coverImage.mimeType);
-    const coverFilename = `cover${coverExt}`;
-    
+  if (coverImage && coverFilename && oebps) {
     // Add cover image file
-    const imagesFolder = oebps.folder('images');
     imagesFolder?.file(coverFilename, coverImage.data);
     
     // Add cover image to manifest
@@ -334,7 +455,14 @@ export async function generateEpub(
       mermaidAsPng: true,  // Use PNG for EPUB compatibility
       bodyClass,
     });
-    oebps?.file(filename, xhtml);
+    const xhtmlWithProjectImages = replaceEmbeddedImageRefs(xhtml, embeddedImageHrefs);
+    const xhtmlWithEmbeddedImages = await embedExternalImages(
+      xhtmlWithProjectImages,
+      imagesFolder,
+      manifestItems,
+      externalImageCache
+    );
+    oebps?.file(filename, xhtmlWithEmbeddedImages);
     
     // Collect mermaid images
     allMermaidImages.push(...mermaidImages);
@@ -349,7 +477,6 @@ export async function generateEpub(
   }
   
   // Add mermaid images to EPUB
-  const imagesFolder = oebps?.folder('images');
   for (const mermaidImg of allMermaidImages) {
     // Convert base64 to ArrayBuffer
     const binaryString = atob(mermaidImg.base64);
