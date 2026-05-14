@@ -4,7 +4,7 @@ import { EPUB_CONTAINER_XML, EPUB_MIMETYPE } from '../constants';
 import { getThemeCss, DEFAULT_THEME_ID, type ThemeId } from '../themes';
 
 // Declare external libraries (loaded via CDN)
-interface JSZipFolder {
+export interface JSZipFolder {
   file(path: string, content: string | ArrayBuffer): void;
   folder(path: string): JSZipFolder | null;
 }
@@ -92,7 +92,7 @@ async function fetchExternalImage(src: string): Promise<{ data: ArrayBuffer; med
   return null;
 }
 
-async function embedExternalImages(
+export async function embedExternalImagesForEpub(
   xhtml: string,
   imagesFolder: JSZipFolder | null | undefined,
   manifestItems: EpubManifestItem[],
@@ -501,7 +501,7 @@ export async function generateEpub(
       bodyClass,
     });
     const xhtmlWithProjectImages = replaceEmbeddedImageRefs(xhtml, embeddedImageHrefs);
-    const xhtmlWithEmbeddedImages = await embedExternalImages(
+    const xhtmlWithEmbeddedImages = await embedExternalImagesForEpub(
       xhtmlWithProjectImages,
       imagesFolder,
       manifestItems,
