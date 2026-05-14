@@ -311,6 +311,12 @@ project.mdebook (ZIP)
 
 ## 📝 Changelog
 
+### v0.6.1
+- **EPUB External Image Handling**:
+  - EPUB generation now continues when an external image cannot be fetched
+  - Unfetchable external images are left as their original URL instead of stopping export
+  - Completion status reports when external images could not be embedded
+
 ### v0.6.0
 - **EPUB Embedded Images**:
   - Project images referenced from Markdown are included inside the EPUB file

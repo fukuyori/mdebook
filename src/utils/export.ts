@@ -69,7 +69,8 @@ async function embedExternalImages(
   xhtml: string,
   imagesFolder: JSZipFolder | null | undefined,
   manifestItems: EpubManifestItem[],
-  imageCache: Map<string, { href: string; mediaType: string }>
+  imageCache: Map<string, { href: string; mediaType: string }>,
+  failedImageSources: Set<string>
 ): Promise<string> {
   const srcRegex = /src=(["'])(https?:\/\/[^"']+|data:image\/[^"']+)\1/g;
   const replacements: Array<{ src: string; href: string }> = [];
@@ -77,37 +78,53 @@ async function embedExternalImages(
   
   while ((match = srcRegex.exec(xhtml)) !== null) {
     const src = match[2];
+    if (failedImageSources.has(src)) continue;
     
     if (!imageCache.has(src)) {
       const imageIndex = imageCache.size;
       let data: ArrayBuffer;
       let mediaType: string;
       
-      if (src.startsWith('data:')) {
-        const dataUrlMatch = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(src);
-        if (!dataUrlMatch) continue;
-        
-        mediaType = dataUrlMatch[1];
-        const payload = dataUrlMatch[3];
-        if (dataUrlMatch[2]) {
-          const binary = atob(payload);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
+      try {
+        if (src.startsWith('data:')) {
+          const dataUrlMatch = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(src);
+          if (!dataUrlMatch) {
+            failedImageSources.add(src);
+            continue;
           }
-          data = bytes.buffer;
+          
+          mediaType = dataUrlMatch[1];
+          const payload = dataUrlMatch[3];
+          if (dataUrlMatch[2]) {
+            const binary = atob(payload);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              bytes[i] = binary.charCodeAt(i);
+            }
+            data = bytes.buffer;
+          } else {
+            data = new TextEncoder().encode(decodeURIComponent(payload)).buffer;
+          }
         } else {
-          data = new TextEncoder().encode(decodeURIComponent(payload)).buffer;
+          const response = await fetch(src);
+          if (!response.ok) {
+            failedImageSources.add(src);
+            continue;
+          }
+          
+          data = await response.arrayBuffer();
+          mediaType = response.headers.get('content-type')?.split(';')[0].trim() || getMimeTypeFromUrl(src);
         }
-      } else {
-        const response = await fetch(src);
-        if (!response.ok) continue;
-        
-        data = await response.arrayBuffer();
-        mediaType = response.headers.get('content-type')?.split(';')[0].trim() || getMimeTypeFromUrl(src);
+      } catch (error) {
+        console.warn('Failed to embed external image in EPUB:', src, error);
+        failedImageSources.add(src);
+        continue;
       }
       
-      if (!mediaType.startsWith('image/')) continue;
+      if (!mediaType.startsWith('image/')) {
+        failedImageSources.add(src);
+        continue;
+      }
       
       const extension = getExtensionFromMimeType(mediaType);
       const href = `images/external-${imageIndex}${extension}`;
@@ -332,6 +349,7 @@ export async function generateEpub(
   const imagesFolder = oebps?.folder('images');
   const embeddedImageHrefs = new Map<string, string>();
   const externalImageCache = new Map<string, { href: string; mediaType: string }>();
+  const failedExternalImageSources = new Set<string>();
   
   // Add project images referenced from chapters to EPUB
   for (let idx = 0; idx < images.length; idx++) {
@@ -460,7 +478,8 @@ export async function generateEpub(
       xhtmlWithProjectImages,
       imagesFolder,
       manifestItems,
-      externalImageCache
+      externalImageCache,
+      failedExternalImageSources
     );
     oebps?.file(filename, xhtmlWithEmbeddedImages);
     
@@ -529,7 +548,11 @@ export async function generateEpub(
   const filename = `${metadata.title || 'book'}.epub`;
   saveAs(blob, filename);
   
-  onProgress?.('EPUB generation complete');
+  if (failedExternalImageSources.size > 0) {
+    onProgress?.(`EPUB generation complete (${failedExternalImageSources.size} external image(s) could not be embedded)`);
+  } else {
+    onProgress?.('EPUB generation complete');
+  }
 }
 
 /**
