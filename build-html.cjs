@@ -19,6 +19,16 @@ const bundle = fs.readFileSync(bundlePath, 'utf8');
 const cssPath = path.join(__dirname, 'src', 'styles.css');
 let css = fs.readFileSync(cssPath, 'utf8');
 
+// Inline React runtime so the standalone HTML can start even when CDNs are blocked.
+const reactBundle = fs.readFileSync(
+  path.join(__dirname, 'node_modules', 'react', 'umd', 'react.production.min.js'),
+  'utf8'
+);
+const reactDomBundle = fs.readFileSync(
+  path.join(__dirname, 'node_modules', 'react-dom', 'umd', 'react-dom.production.min.js'),
+  'utf8'
+);
+
 // Remove Tailwind directives (we'll use CDN)
 css = css.replace(/@tailwind\s+\w+;/g, '');
 
@@ -33,7 +43,7 @@ const html = `<!DOCTYPE html>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- External dependencies (loaded before Monaco to avoid AMD conflicts) -->
+  <!-- External dependencies -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -45,17 +55,41 @@ const html = `<!DOCTYPE html>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
   
-  <!-- React (must load before app bundle) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- React runtime (inlined for standalone reliability) -->
+  <script>
+${reactBundle}
+  </script>
+  <script>
+${reactDomBundle}
+  </script>
+  <script>
+    // The production JSX runtime bundled by Vite calls require('react').
+    // Provide only the modules the standalone bundle needs.
+    (function() {
+      var modules = {
+        react: window.React,
+        'react-dom': window.ReactDOM
+      };
+
+      window.require = function(name) {
+        if (typeof name === 'string' && modules[name]) {
+          return modules[name];
+        }
+        throw new Error('Standalone module is not available: ' + name);
+      };
+      window.require.config = function() {};
+    })();
+  </script>
   
   <script>
     // Initialize Mermaid
-    mermaid.initialize({ 
-      startOnLoad: false, 
-      theme: 'dark',
-      securityLevel: 'loose'
-    });
+    if (typeof mermaid !== 'undefined') {
+      mermaid.initialize({ 
+        startOnLoad: false, 
+        theme: 'dark',
+        securityLevel: 'loose'
+      });
+    }
   </script>
   
   <style>
@@ -75,26 +109,35 @@ const html = `<!DOCTYPE html>
 ${bundle}
   </script>
   
-  <!-- Monaco Editor (loaded after app bundle) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
-  <script>
-    // Configure Monaco loader
-    require.config({ 
-      paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }
-    });
-  </script>
-  
   <!-- Mount App -->
   <script>
     // Mount the React application
     (function() {
-      var rootElement = document.getElementById('root');
-      if (rootElement && typeof MDebook !== 'undefined' && MDebook.App) {
+      function showStartupError(message, error) {
+        var rootElement = document.getElementById('root');
+        if (!rootElement) return;
+        var details = error && (error.stack || error.message) ? '\\n\\n' + (error.stack || error.message) : '';
+        rootElement.innerHTML = '<pre style="margin:24px;padding:16px;white-space:pre-wrap;background:#111827;color:#f9fafb;border-radius:8px;font:14px/1.5 Consolas,monospace;"></pre>';
+        rootElement.querySelector('pre').textContent = message + details;
+      }
+
+      try {
+        var rootElement = document.getElementById('root');
+        if (!rootElement) {
+          throw new Error('Root element was not found.');
+        }
+        if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || !ReactDOM.createRoot) {
+          throw new Error('React runtime was not loaded.');
+        }
+        if (typeof MDebook === 'undefined' || !MDebook.App) {
+          throw new Error('MDebook application bundle was not loaded.');
+        }
+
         var root = ReactDOM.createRoot(rootElement);
         root.render(React.createElement(MDebook.App));
-      } else {
-        console.error('MDebook or App not found', typeof MDebook);
+      } catch (error) {
+        console.error('MDebook startup failed', error);
+        showStartupError('MDebook failed to start.', error);
       }
     })();
   </script>
