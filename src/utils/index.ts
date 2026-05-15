@@ -15,3 +15,6 @@ export * from './storage';
 
 // Encoding detection utilities
 export * from './encoding';
+
+// HTML to Markdown conversion (Turndown wrapper)
+export * from './html-to-markdown';

@@ -54,6 +54,7 @@ export interface TranslationStrings {
   qiitaArticle: string;
   githubAuto: string;
   directMd: string;
+  htmlPage: string;
   cancel: string;
   import: string;
   importing: string;
@@ -67,6 +68,19 @@ export interface TranslationStrings {
   filesImported: string;
   importComplete: string;
   importError: string;
+  imagesUnresolved: string;
+  imagesResolved: string;
+  resolveImagesPrompt: string;
+  resolveImagesButton: string;
+  dismiss: string;
+  selectFolder: string;
+  folderHint: string;
+  newProject: string;
+  confirmNewProject: string;
+  newProjectCreated: string;
+  pasteHtmlPlaceholder: string;
+  pasteHtmlHint: string;
+  convertHtmlButton: string;
   loadError: string;
   invalidProject: string;
   fileOpened: string;
@@ -219,6 +233,7 @@ export const en: TranslationStrings = {
   qiitaArticle: 'Qiita articles (auto-appends .md)',
   githubAuto: 'GitHub (auto-converts to raw URL)',
   directMd: 'Direct .md file URLs',
+  htmlPage: 'Web pages (HTML auto-converted to Markdown)',
   cancel: 'Cancel',
   import: 'Import',
   importing: 'Importing...',
@@ -232,6 +247,19 @@ export const en: TranslationStrings = {
   filesImported: 'file(s) imported',
   importComplete: 'Import complete',
   importError: 'Import error',
+  imagesUnresolved: 'image(s) unresolved',
+  imagesResolved: 'image(s) resolved',
+  resolveImagesPrompt: 'images could not be loaded.',
+  resolveImagesButton: 'Select images folder',
+  dismiss: 'Dismiss',
+  selectFolder: 'Select Folder',
+  folderHint: 'Pick a folder to import a saved page with its _files images',
+  newProject: 'New Project',
+  confirmNewProject: 'Discard the current project and start a new one?',
+  newProjectCreated: 'New project created',
+  pasteHtmlPlaceholder: 'Paste HTML here…',
+  pasteHtmlHint: 'Paste raw HTML and convert it to Markdown. Remote images are auto-downloaded.',
+  convertHtmlButton: 'Convert HTML',
   loadError: 'Load error',
   invalidProject: 'Invalid project file',
   fileOpened: 'File opened',
@@ -301,7 +329,7 @@ export const en: TranslationStrings = {
   
   // Import dialog
   selectFiles: 'Select Files',
-  supportedFormats: '.md, .txt, .mdebook supported (multiple)',
+  supportedFormats: '.md, .txt, .html, .mdebook supported (multiple, HTML auto-converted)',
   or: 'or',
   
   // Conflict warning
@@ -384,6 +412,7 @@ export const ja: TranslationStrings = {
   qiitaArticle: 'Qiita記事 (.mdを自動追加)',
   githubAuto: 'GitHub (rawに自動変換)',
   directMd: '直接の.mdファイルURL',
+  htmlPage: 'Webページ (HTMLを自動でMarkdownに変換)',
   cancel: 'キャンセル',
   import: 'インポート',
   importing: 'インポート中...',
@@ -397,6 +426,19 @@ export const ja: TranslationStrings = {
   filesImported: 'ファイルをインポートしました',
   importComplete: 'インポートが完了しました',
   importError: 'インポートエラー',
+  imagesUnresolved: '個の画像が未解決',
+  imagesResolved: '個の画像を取り込みました',
+  resolveImagesPrompt: '個の画像が読み込めませんでした。',
+  resolveImagesButton: '画像フォルダを選択',
+  dismiss: '閉じる',
+  selectFolder: 'フォルダを選択',
+  folderHint: 'HTMLと_filesフォルダごと取り込む場合はフォルダを選択',
+  newProject: '新規プロジェクト',
+  confirmNewProject: '現在のプロジェクトを破棄して新しいプロジェクトを開始しますか?',
+  newProjectCreated: '新規プロジェクトを作成しました',
+  pasteHtmlPlaceholder: 'ここにHTMLを貼り付け…',
+  pasteHtmlHint: 'HTMLを貼り付けてMarkdownに変換します。リモート画像は自動でダウンロードされます。',
+  convertHtmlButton: 'HTMLを変換',
   loadError: '読み込みエラー',
   invalidProject: '無効なプロジェクトファイル',
   fileOpened: 'ファイルを開きました',
@@ -466,7 +508,7 @@ export const ja: TranslationStrings = {
   
   // Import dialog
   selectFiles: 'ファイルを選択',
-  supportedFormats: '.md, .txt, .mdebook 対応（複数可）',
+  supportedFormats: '.md, .txt, .html, .mdebook 対応（複数可、HTMLは自動でMarkdownに変換）',
   or: 'または',
   
   // Conflict warning
@@ -549,6 +591,7 @@ export const zh: TranslationStrings = {
   qiitaArticle: 'Qiita文章（自动添加.md）',
   githubAuto: 'GitHub（自动转换为raw）',
   directMd: '直接的.md文件URL',
+  htmlPage: '网页（自动将HTML转换为Markdown）',
   cancel: '取消',
   import: '导入',
   importing: '导入中...',
@@ -562,6 +605,19 @@ export const zh: TranslationStrings = {
   filesImported: '个文件已导入',
   importComplete: '导入完成',
   importError: '导入错误',
+  imagesUnresolved: '个图片未解析',
+  imagesResolved: '个图片已导入',
+  resolveImagesPrompt: '个图片无法加载。',
+  resolveImagesButton: '选择图片文件夹',
+  dismiss: '关闭',
+  selectFolder: '选择文件夹',
+  folderHint: '选择文件夹以连同_files图片一起导入已保存的页面',
+  newProject: '新建项目',
+  confirmNewProject: '放弃当前项目并开始新项目？',
+  newProjectCreated: '已创建新项目',
+  pasteHtmlPlaceholder: '在此粘贴HTML…',
+  pasteHtmlHint: '粘贴HTML并转换为Markdown。远程图片将自动下载。',
+  convertHtmlButton: '转换HTML',
   loadError: '加载错误',
   invalidProject: '无效的项目文件',
   fileOpened: '文件已打开',
@@ -631,7 +687,7 @@ export const zh: TranslationStrings = {
   
   // Import dialog
   selectFiles: '选择文件',
-  supportedFormats: '支持 .md, .txt, .mdebook（可多选）',
+  supportedFormats: '支持 .md, .txt, .html, .mdebook（可多选，HTML自动转换为Markdown）',
   or: '或',
   
   // Conflict warning
@@ -714,6 +770,7 @@ export const es: TranslationStrings = {
   qiitaArticle: 'Artículo de Qiita (agrega .md automáticamente)',
   githubAuto: 'GitHub (convierte a raw automáticamente)',
   directMd: 'URL directa de archivo .md',
+  htmlPage: 'Páginas web (HTML convertido automáticamente a Markdown)',
   cancel: 'Cancelar',
   import: 'Importar',
   importing: 'Importando...',
@@ -727,6 +784,19 @@ export const es: TranslationStrings = {
   filesImported: 'archivos importados',
   importComplete: 'Importación completada',
   importError: 'Error de importación',
+  imagesUnresolved: 'imagen(es) sin resolver',
+  imagesResolved: 'imagen(es) resueltas',
+  resolveImagesPrompt: 'imágenes no se pudieron cargar.',
+  resolveImagesButton: 'Seleccionar carpeta de imágenes',
+  dismiss: 'Cerrar',
+  selectFolder: 'Seleccionar carpeta',
+  folderHint: 'Selecciona una carpeta para importar una página guardada con sus imágenes _files',
+  newProject: 'Nuevo proyecto',
+  confirmNewProject: '¿Descartar el proyecto actual y empezar uno nuevo?',
+  newProjectCreated: 'Nuevo proyecto creado',
+  pasteHtmlPlaceholder: 'Pega HTML aquí…',
+  pasteHtmlHint: 'Pega HTML y conviértelo a Markdown. Las imágenes remotas se descargan automáticamente.',
+  convertHtmlButton: 'Convertir HTML',
   loadError: 'Error de carga',
   invalidProject: 'Archivo de proyecto inválido',
   fileOpened: 'Archivo abierto',
@@ -796,7 +866,7 @@ export const es: TranslationStrings = {
   
   // Import dialog
   selectFiles: 'Seleccionar archivos',
-  supportedFormats: '.md, .txt, .mdebook compatible (múltiple)',
+  supportedFormats: '.md, .txt, .html, .mdebook compatible (múltiple, HTML convertido automáticamente)',
   or: 'o',
   
   // Conflict warning
@@ -879,6 +949,7 @@ export const ko: TranslationStrings = {
   qiitaArticle: 'Qiita 글 (.md 자동 추가)',
   githubAuto: 'GitHub (raw로 자동 변환)',
   directMd: '직접 .md 파일 URL',
+  htmlPage: '웹페이지 (HTML을 Markdown으로 자동 변환)',
   cancel: '취소',
   import: '가져오기',
   importing: '가져오는 중...',
@@ -892,6 +963,19 @@ export const ko: TranslationStrings = {
   filesImported: '개 파일을 가져왔습니다',
   importComplete: '가져오기 완료',
   importError: '가져오기 오류',
+  imagesUnresolved: '개의 이미지가 해석되지 않음',
+  imagesResolved: '개의 이미지를 가져왔습니다',
+  resolveImagesPrompt: '개의 이미지를 불러올 수 없습니다.',
+  resolveImagesButton: '이미지 폴더 선택',
+  dismiss: '닫기',
+  selectFolder: '폴더 선택',
+  folderHint: '저장된 페이지를 _files 이미지와 함께 가져오려면 폴더를 선택하세요',
+  newProject: '새 프로젝트',
+  confirmNewProject: '현재 프로젝트를 버리고 새 프로젝트를 시작하시겠습니까?',
+  newProjectCreated: '새 프로젝트를 만들었습니다',
+  pasteHtmlPlaceholder: '여기에 HTML을 붙여넣으세요…',
+  pasteHtmlHint: 'HTML을 붙여넣어 Markdown으로 변환합니다. 원격 이미지는 자동으로 다운로드됩니다.',
+  convertHtmlButton: 'HTML 변환',
   loadError: '로드 오류',
   invalidProject: '잘못된 프로젝트 파일',
   fileOpened: '파일이 열렸습니다',
@@ -961,7 +1045,7 @@ export const ko: TranslationStrings = {
   
   // Import dialog
   selectFiles: '파일 선택',
-  supportedFormats: '.md, .txt, .mdebook 지원 (다중 선택 가능)',
+  supportedFormats: '.md, .txt, .html, .mdebook 지원 (다중 선택 가능, HTML은 자동으로 Markdown 변환)',
   or: '또는',
   
   // Conflict warning

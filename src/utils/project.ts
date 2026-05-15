@@ -554,49 +554,108 @@ export async function addImageFromFile(file: File, isPasted: boolean = false): P
 }
 
 /**
- * Add image to project from URL
+ * Add image to project from URL.
+ *
+ * Strategy:
+ *   1. Try direct fetch (works only when the remote host sends CORS headers).
+ *   2. Fall back to `images.weserv.nl` — a free, dedicated image proxy that
+ *      always serves with permissive CORS headers. Best choice for raster
+ *      images on hosts that block cross-origin reads (substackcdn, S3, ...).
+ *   3. Fall back to generic CORS proxies (covers SVG and non-image cases).
  */
 export async function addImageFromUrl(url: string): Promise<ProjectImage | null> {
   try {
     let data: ArrayBuffer | null = null;
-    
-    // Try direct fetch first
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        data = await response.arrayBuffer();
+
+    // Build the candidate URL list. For http:// URLs we also try an
+    // https://-upgraded variant — many hosts that block weserv/proxies on
+    // HTTP work fine on HTTPS, and most modern origins serve both.
+    const candidates: string[] = [url];
+    if (/^http:\/\//i.test(url)) candidates.push(url.replace(/^http:\/\//i, 'https://'));
+
+    // 1) Direct fetch (will fail on http:// from an https:// app due to mixed
+    //    content, which is fine — we just fall through to a proxy).
+    for (const candidate of candidates) {
+      try {
+        const response = await fetch(candidate);
+        if (response.ok) {
+          data = await response.arrayBuffer();
+          break;
+        }
+      } catch {
+        // CORS / mixed-content / network error → fall through
       }
-    } catch {
-      // Direct fetch failed, try proxies
     }
-    
-    // If direct fetch failed, try CORS proxies
+
+    // 2) Image-specific proxy: images.weserv.nl. Pass the full URL (with
+    //    scheme) so weserv preserves http:// when needed. Encoding the URL is
+    //    important because raw `?` and `&` would otherwise break the proxy URL.
     if (!data) {
-      const corsProxies = [
-        (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-        (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-      ];
-      
-      for (const getProxyUrl of corsProxies) {
+      for (const candidate of candidates) {
+        if (!/^https?:\/\//i.test(candidate)) continue;
         try {
-          const proxyUrl = getProxyUrl(url);
+          const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(candidate)}`;
           const response = await fetch(proxyUrl);
           if (response.ok) {
             data = await response.arrayBuffer();
             break;
           }
         } catch {
-          // Try next proxy
+          // fall through
         }
       }
     }
-    
+
+    // 3) Generic CORS proxies (covers SVG, non-image content, and cases
+    //    where weserv refuses the host). Tried for every candidate scheme.
+    if (!data) {
+      const corsProxies = [
+        (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+        (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      ];
+
+      outer: for (const candidate of candidates) {
+        for (const getProxyUrl of corsProxies) {
+          try {
+            const proxyUrl = getProxyUrl(candidate);
+            const response = await fetch(proxyUrl);
+            if (response.ok) {
+              data = await response.arrayBuffer();
+              break outer;
+            }
+          } catch {
+            // Try next proxy
+          }
+        }
+      }
+    }
+
     if (!data) {
       throw new Error('Failed to fetch image (all proxies failed)');
     }
-    
-    const filename = url.split('/').pop() || 'image.png';
-    
+
+    // Derive a sensible filename from the URL path.
+    // Handles CDN proxy URLs like substackcdn.com/image/fetch/<params>/<encoded_source>
+    // by decoding the embedded source URL and using ITS last segment.
+    let filename: string;
+    try {
+      const parsed = new URL(url);
+      let seg = parsed.pathname.split('/').filter(Boolean).pop() || '';
+      // If the last segment is itself a URL-encoded URL, decode and re-extract.
+      if (/^https?%3a%2f%2f/i.test(seg)) {
+        try {
+          const decoded = decodeURIComponent(seg);
+          const inner = new URL(decoded);
+          seg = inner.pathname.split('/').filter(Boolean).pop() || seg;
+        } catch {
+          // leave seg as is
+        }
+      }
+      filename = seg && /\.[a-z0-9]+$/i.test(seg) ? seg : (seg || 'image') + '.png';
+    } catch {
+      filename = url.split('/').pop() || 'image.png';
+    }
+
     return {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       name: filename,
@@ -604,7 +663,7 @@ export async function addImageFromUrl(url: string): Promise<ProjectImage | null>
       mimeType: getMimeType(filename),
     };
   } catch (error) {
-    console.error('Failed to fetch image from URL:', error);
+    console.warn('Failed to fetch image from URL:', url, error);
     return null;
   }
 }

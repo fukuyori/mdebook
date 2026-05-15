@@ -680,6 +680,45 @@ function getMermaidContainerStyle(attrs: MediaAttributes, defaultMaxWidth?: numb
 }
 
 /**
+ * Re-parse `html` through the browser's HTML5 parser to auto-balance any
+ * mismatched / unknown tags (e.g. raw `<sic>` from source HTML that mixed
+ * badly with marked.js inline emphasis), then return the well-formed
+ * HTML5 serialization. The result still uses HTML5 syntax for void elements
+ * — call `selfCloseVoidElements` afterwards to finish XHTML conversion.
+ */
+function balanceHtmlTags(html: string): string {
+  if (typeof DOMParser === 'undefined') return html;
+  const wrapped = `<div id="__mdebook_balance_wrapper__">${html}</div>`;
+  const doc = new DOMParser().parseFromString(wrapped, 'text/html');
+  const container = doc.getElementById('__mdebook_balance_wrapper__');
+  return container ? container.innerHTML : html;
+}
+
+/**
+ * Rewrite HTML5 void elements (`<img>`, `<br>`, `<hr>`, …) to XHTML
+ * self-closing form (`<img …/>`). marked.js emits HTML5 syntax, which is not
+ * well-formed XML and trips up strict EPUB readers / XML validators.
+ *
+ * Already self-closing tags pass through unchanged; attributes are preserved
+ * verbatim. Tags with the same prefix but a different name
+ * (e.g. `<image>` vs `<img>`) are not touched.
+ */
+function selfCloseVoidElements(html: string): string {
+  const voidEls = [
+    'img', 'br', 'hr', 'meta', 'link', 'input', 'source',
+    'area', 'base', 'col', 'embed', 'param', 'track', 'wbr',
+  ];
+  const pattern = new RegExp(
+    `<(${voidEls.join('|')})(\\s[^>]*?)?\\s*/?>`,
+    'gi'
+  );
+  return html.replace(pattern, (_match, tag: string, attrs?: string) => {
+    const a = (attrs ?? '').replace(/\s+$/, '');
+    return a ? `<${tag}${a}/>` : `<${tag}/>`;
+  });
+}
+
+/**
  * Convert markdown to XHTML for EPUB
  * Returns XHTML content and any generated mermaid images
  */
@@ -767,7 +806,18 @@ export async function convertToXhtml(
   
   // Parse to HTML
   let html = parseMarkdown(processedMarkdown);
-  
+
+  // Re-balance any mismatched tags (e.g. stray `<sic>`/`</em>` from source
+  // HTML that survived Markdown conversion) by running the output through
+  // the browser's HTML5 parser. This guarantees the chapter body is at least
+  // well-formed before we hand it to the strict XHTML wrapper.
+  html = balanceHtmlTags(html);
+
+  // Normalize HTML5 void elements (<img>, <br>, <hr>, ...) to XHTML
+  // self-closing form. marked emits HTML5 syntax which is not well-formed XML
+  // and EPUB readers may reject the chapter otherwise.
+  html = selfCloseVoidElements(html);
+
   // Style section: use external CSS if provided, otherwise use inline styles
   const styleSection = options?.stylesheetHref
     ? `<link rel="stylesheet" type="text/css" href="${options.stylesheetHref}"/>`

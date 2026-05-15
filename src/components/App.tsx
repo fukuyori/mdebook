@@ -41,8 +41,13 @@ import {
   deletePdfFont,
   type StoredFont,
   // Encoding utilities
-  readFileWithEncoding,
   readResponseWithEncoding,
+  // HTML to Markdown
+  looksLikeHtml,
+  htmlToMarkdown,
+  isHtmlFileName,
+  readTextFileAsMarkdown,
+  downloadInlineImages,
 } from '../utils';
 import CodeMirrorEditor from './CodeMirrorEditor';
 import Preview from './Preview';
@@ -54,6 +59,66 @@ type FileSystemFileHandle = {
   createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }>;
   name: string;
 };
+
+// Minimal types for the (older) FileSystemEntry API used to traverse dropped folders.
+interface DroppedFileEntry { isFile: boolean; isDirectory: boolean; name: string }
+interface DroppedFileFileEntry extends DroppedFileEntry { file(cb: (f: File) => void, err?: (e: unknown) => void): void }
+interface DroppedFileDirEntry extends DroppedFileEntry { createReader(): { readEntries(cb: (entries: DroppedFileEntry[]) => void, err?: (e: unknown) => void): void } }
+
+/**
+ * Walk a (possibly nested) FileSystemEntry, collecting File objects keyed by
+ * their relative path within the drop. Used so that an HTML page saved with
+ * its `<name>_files/` companion folder can be dropped together and have its
+ * relative image paths resolve.
+ */
+async function collectDroppedEntries(
+  items: DataTransferItemList | null,
+  fallbackFiles: FileList | null
+): Promise<{ files: File[]; byPath: Map<string, File> }> {
+  const byPath = new Map<string, File>();
+  const files: File[] = [];
+
+  const supportsEntry = !!(items && items.length > 0 &&
+    typeof (items[0] as unknown as { webkitGetAsEntry?: () => unknown }).webkitGetAsEntry === 'function');
+
+  if (supportsEntry && items) {
+    const roots: DroppedFileEntry[] = [];
+    for (const item of Array.from(items)) {
+      const entry = (item as unknown as { webkitGetAsEntry: () => DroppedFileEntry | null }).webkitGetAsEntry();
+      if (entry) roots.push(entry);
+    }
+    const walk = async (entry: DroppedFileEntry, prefix: string): Promise<void> => {
+      if (entry.isFile) {
+        const file = await new Promise<File>((resolve, reject) =>
+          (entry as DroppedFileFileEntry).file(resolve, reject)
+        );
+        const path = prefix + entry.name;
+        byPath.set(path, file);
+        files.push(file);
+      } else if (entry.isDirectory) {
+        const reader = (entry as DroppedFileDirEntry).createReader();
+        // readEntries returns batches; keep reading until empty.
+        while (true) {
+          const batch = await new Promise<DroppedFileEntry[]>((resolve, reject) =>
+            reader.readEntries(resolve, reject)
+          );
+          if (batch.length === 0) break;
+          for (const sub of batch) {
+            await walk(sub, prefix + entry.name + '/');
+          }
+        }
+      }
+    };
+    for (const root of roots) await walk(root, '');
+  } else if (fallbackFiles) {
+    for (const f of Array.from(fallbackFiles)) {
+      byPath.set(f.name, f);
+      files.push(f);
+    }
+  }
+
+  return { files, byPath };
+}
 
 /**
  * Main application component
@@ -109,6 +174,19 @@ export const App: React.FC = () => {
   const [vimEnabled, setVimEnabled] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  // Left-side file list width, persisted across sessions. Range [120, 600] px.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('mdebook_sidebar_width'));
+    if (saved >= 120 && saved <= 600) return saved;
+    return 192; // matches the previous w-48 default
+  });
+  useEffect(() => {
+    localStorage.setItem('mdebook_sidebar_width', String(sidebarWidth));
+  }, [sidebarWidth]);
+  // Tracks recently-imported HTML files that still have unresolved relative
+  // image references, so we can offer the user a one-click "select images
+  // folder" follow-up. Cleared once resolved or dismissed.
+  const [pendingImageResolve, setPendingImageResolve] = useState<{ fileIds: string[]; missingCount: number } | null>(null);
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [pendingProjectData, setPendingProjectData] = useState<{
     files: EditorFile[];
@@ -135,6 +213,7 @@ export const App: React.FC = () => {
   // Status
   const [exportStatus, setExportStatus] = useState('');
   const [importUrl, setImportUrl] = useState('');
+  const [importHtmlText, setImportHtmlText] = useState('');
   const [importLoading, setImportLoading] = useState(false);
   
   // PDF Font state
@@ -619,9 +698,13 @@ export const App: React.FC = () => {
     const midY = rect.top + rect.height / 2;
     const insertAfter = e.clientY >= midY;
     
-    // Check for external files first
-    const droppedFiles = Array.from(e.dataTransfer?.files || []);
-    
+    // Check for external files first (with folder traversal so a saved-page
+    // `<name>_files/` companion folder can be dropped together).
+    const { files: droppedFiles, byPath: droppedByPath } = await collectDroppedEntries(
+      e.dataTransfer?.items ?? null,
+      e.dataTransfer?.files ?? null
+    );
+
     if (droppedFiles.length > 0 && !draggedFileId) {
       // External file drop - import at this position
       const targetIndex = files.findIndex(f => f.id === targetFileId);
@@ -655,22 +738,45 @@ export const App: React.FC = () => {
         return;
       }
       
-      // Filter for markdown/text files
-      const markdownFiles = droppedFiles.filter(f => 
+      // Filter for markdown/text/html files
+      const importableFiles = droppedFiles.filter(f =>
         f.name.endsWith('.md') ||
         f.name.endsWith('.markdown') ||
-        f.name.endsWith('.txt')
+        f.name.endsWith('.txt') ||
+        isHtmlFileName(f.name)
       );
-      
-      if (markdownFiles.length > 0) {
+
+      if (importableFiles.length > 0) {
         const importedFiles: EditorFile[] = [];
-        
-        for (const file of markdownFiles) {
-          const content = await readFileWithEncoding(file);
+        const downloadedImages: ProjectImage[] = [];
+
+        let totalFailed = 0;
+        for (const file of importableFiles) {
+          const { name, content, wasHtml } = await readTextFileAsMarkdown(file);
+          let finalContent = content;
+          if (wasHtml) {
+            const taken = new Set<string>([
+              ...images.map(img => img.name),
+              ...downloadedImages.map(img => img.name),
+            ]);
+            const result = await downloadInlineImages(content, {
+              existingImageNames: taken,
+              localFiles: droppedByPath,
+              onProgress: (d, total) => {
+                if (total > 0) setExportStatus(`${t.importing} ${d}/${total}`);
+              },
+            });
+            finalContent = result.markdown;
+            for (const img of result.images) downloadedImages.push(img);
+            totalFailed += result.failed.length;
+            if (result.failed.length > 0) {
+              console.warn(`[mdebook] ${result.failed.length} image(s) could not be loaded for "${name}":`, result.failed);
+            }
+          }
           const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-          importedFiles.push({ id: newId, name: file.name, content });
+          importedFiles.push({ id: newId, name, content: finalContent });
         }
-        
+
         if (importedFiles.length > 0) {
           // Insert at the target position
           setFiles(prev => {
@@ -680,12 +786,22 @@ export const App: React.FC = () => {
             return newFiles;
           });
           setActiveFileId(importedFiles[0].id);
-          setExportStatus(`${importedFiles.length} ${t.filesImported}`);
-          setTimeout(() => setExportStatus(''), 2000);
+          if (downloadedImages.length > 0) {
+            setImages(prev => [...prev, ...downloadedImages]);
+          }
+          const baseMsg = `${importedFiles.length} ${t.filesImported}`;
+          setExportStatus(totalFailed > 0 ? `${baseMsg} (${totalFailed} ${t.imagesUnresolved})` : baseMsg);
+          setTimeout(() => setExportStatus(''), totalFailed > 0 ? 5000 : 2000);
+          if (totalFailed > 0) {
+            setPendingImageResolve({
+              fileIds: importedFiles.map(f => f.id),
+              missingCount: totalFailed,
+            });
+          }
           focusEditor();
         }
       }
-      
+
       setDragOverFileId(null);
       return;
     }
@@ -719,14 +835,74 @@ export const App: React.FC = () => {
     
     setDraggedFileId(null);
     setDragOverFileId(null);
-  }, [draggedFileId, files, t.filesImported, t.projectLoaded, focusEditor, applyProjectData]);
+  }, [draggedFileId, files, images, t.filesImported, t.imagesUnresolved, t.importing, t.projectLoaded, focusEditor, applyProjectData]);
   
   // Handle drag end
   const handleDragEnd = useCallback(() => {
     setDraggedFileId(null);
     setDragOverFileId(null);
   }, []);
-  
+
+  // Start dragging the sidebar resize handle. Tracks initial pointer X and
+  // width, then updates `sidebarWidth` on document-level mousemove until the
+  // mouse is released.
+  const handleSidebarResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.max(120, Math.min(600, startWidth + (ev.clientX - startX)));
+      setSidebarWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [sidebarWidth]);
+  // Reset to default width on double-click of the handle.
+  const handleSidebarResizeDoubleClick = useCallback(() => {
+    setSidebarWidth(192);
+  }, []);
+
+  // Start a fresh project: clear all files, images, metadata, file handles.
+  // Asks for confirmation since this discards in-memory work. Auto-save
+  // sessions to IndexedDB remain accessible from the recent-projects flow.
+  const handleNewProject = useCallback(() => {
+    if (!window.confirm(t.confirmNewProject)) return;
+
+    const newId = Date.now().toString();
+    const initialFile: EditorFile = {
+      id: newId,
+      name: `${t.defaultFileName}1.md`,
+      content: '',
+    };
+
+    setFiles([initialFile]);
+    setActiveFileId(newId);
+    setImages([]);
+    setMetadata({
+      title: 'My eBook',
+      author: 'Author',
+      language: uiLang,
+    });
+    setProjectId(generateProjectId());
+    fileHandleRef.current = null;
+    setSavedFileName(null);
+    setFileMarks(new Map());
+    setPendingImageResolve(null);
+    setExportStatus(t.newProjectCreated);
+    setTimeout(() => setExportStatus(''), 2000);
+    focusEditor();
+  }, [t.confirmNewProject, t.defaultFileName, t.newProjectCreated, uiLang, focusEditor]);
+
   // Open file/project from disk (replaces existing data)
   const handleOpen = useCallback(async () => {
     if (isFileSystemAccessSupported()) {
@@ -858,20 +1034,39 @@ export const App: React.FC = () => {
     }
   }, [files, images, metadata, uiLang, t.projectSaved]);
   
-  // Import files from local (adds to existing project)
-  const handleImportFromFiles = useCallback(async () => {
+  // Import files from local (adds to existing project).
+  // When `pickFolder` is true, lets the user pick a whole folder (using
+  // webkitdirectory) so a saved HTML page + its `<name>_files/` companion
+  // folder of images can be imported together with relative paths resolved.
+  const handleImportFromFiles = useCallback(async (pickFolder = false) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.md,.txt,.markdown,.mdebook,.mdvim';
     input.multiple = true;
-    
+    if (pickFolder) {
+      (input as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
+    } else {
+      input.accept = '.md,.txt,.markdown,.mdebook,.mdvim,.html,.htm,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif';
+    }
+
     input.onchange = async (e) => {
       const target = e.target as HTMLInputElement;
       const selectedFiles = Array.from(target.files || []);
-      
+
+      // Build a localFiles map so HTML inputs can resolve relative image paths
+      // against any other files selected alongside. Prefer webkitRelativePath
+      // (folder picker) over plain file name so paths like
+      //   `<page>_files/image.jpg` resolve correctly.
+      const localFiles = new Map<string, File>();
+      for (const f of selectedFiles) {
+        const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+        if (rel) localFiles.set(rel, f);
+        localFiles.set(f.name, f);
+      }
+
       const importedFiles: EditorFile[] = [];
       const importedImages: ProjectImage[] = [];
-      
+      let totalFailed = 0;
+
       for (const file of selectedFiles) {
         if (file.name.endsWith('.mdebook')) {
           // Import from project file
@@ -923,14 +1118,36 @@ export const App: React.FC = () => {
           } catch (error) {
             console.error('Failed to import mdvim file:', error);
           }
-        } else {
-          // Import markdown file
-          const content = await readFileWithEncoding(file);
+        } else if (isHtmlFileName(file.name) || /\.(md|markdown|txt)$/i.test(file.name)) {
+          // Import markdown/html/text file (HTML is auto-converted to Markdown)
+          const { name, content, wasHtml } = await readTextFileAsMarkdown(file);
+          let finalContent = content;
+          // Fetch any remote images referenced by the converted HTML, and
+          // pull in any sibling files the user selected as local images.
+          if (wasHtml) {
+            const taken = new Set<string>([
+              ...images.map(img => img.name),
+              ...importedImages.map(img => img.name),
+            ]);
+            const result = await downloadInlineImages(content, {
+              existingImageNames: taken,
+              localFiles,
+              onProgress: (d, total) => {
+                if (total > 0) setExportStatus(`${t.importing} ${d}/${total}`);
+              },
+            });
+            finalContent = result.markdown;
+            for (const img of result.images) importedImages.push(img);
+            totalFailed += result.failed.length;
+            if (result.failed.length > 0) {
+              console.warn(`[mdebook] ${result.failed.length} image(s) could not be loaded for "${name}":`, result.failed);
+            }
+          }
           const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-          importedFiles.push({ id: newId, name: file.name, content });
+          importedFiles.push({ id: newId, name, content: finalContent });
         }
       }
-      
+
       if (importedFiles.length > 0) {
         // Insert after currently active file, with duplicate name handling
         setFiles(prev => {
@@ -983,21 +1200,104 @@ export const App: React.FC = () => {
       
       if (importedFiles.length > 0 || importedImages.length > 0) {
         setShowImportModal(false);
-        setExportStatus(`${importedFiles.length} ${t.filesImported}`);
-        setTimeout(() => setExportStatus(''), 2000);
+        const baseMsg = `${importedFiles.length} ${t.filesImported}`;
+        setExportStatus(totalFailed > 0 ? `${baseMsg} (${totalFailed} ${t.imagesUnresolved})` : baseMsg);
+        setTimeout(() => setExportStatus(''), totalFailed > 0 ? 5000 : 2000);
+        if (totalFailed > 0 && !pickFolder) {
+          setPendingImageResolve({
+            fileIds: importedFiles.map(f => f.id),
+            missingCount: totalFailed,
+          });
+        }
       }
     };
-    
+
     input.click();
-  }, [t.filesImported, activeFileId]);
-  
+  }, [t.filesImported, t.imagesUnresolved, activeFileId, images]);
+
+  // Follow-up step for HTML imports that left some relative image references
+  // unresolved. Opens a folder picker; any files matched against the still-
+  // unresolved URLs are added as project images and the file content is
+  // rewritten in place.
+  const handleResolveMissingImages = useCallback(async () => {
+    if (!pendingImageResolve) return;
+    const targetIds = pendingImageResolve.fileIds;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    (input as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
+
+    input.onchange = async (e) => {
+      const selected = Array.from((e.target as HTMLInputElement).files || []);
+      if (selected.length === 0) {
+        setPendingImageResolve(null);
+        return;
+      }
+
+      const localFiles = new Map<string, File>();
+      for (const f of selected) {
+        const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+        if (rel) localFiles.set(rel, f);
+        localFiles.set(f.name, f);
+      }
+
+      // Re-process each target file's current content against the new folder.
+      // We don't have a synchronous async-aware setFiles, so collect updates
+      // first, then commit in a single setFiles call.
+      const newImages: ProjectImage[] = [];
+      const contentUpdates = new Map<string, string>();
+      const taken = new Set<string>(images.map(img => img.name));
+
+      const snapshot = files;
+      let totalResolved = 0;
+      for (const file of snapshot) {
+        if (!targetIds.includes(file.id)) continue;
+        const result = await downloadInlineImages(file.content, {
+          existingImageNames: taken,
+          localFiles,
+          onProgress: (d, total) => {
+            if (total > 0) setExportStatus(`${t.importing} ${d}/${total}`);
+          },
+        });
+        if (result.images.length > 0) {
+          contentUpdates.set(file.id, result.markdown);
+          for (const img of result.images) {
+            newImages.push(img);
+            taken.add(img.name);
+          }
+          totalResolved += result.images.length;
+        }
+      }
+
+      if (contentUpdates.size > 0) {
+        setFiles(prev => prev.map(f => contentUpdates.has(f.id) ? { ...f, content: contentUpdates.get(f.id)! } : f));
+      }
+      if (newImages.length > 0) {
+        setImages(prev => [...prev, ...newImages]);
+      }
+
+      setExportStatus(`${totalResolved} ${t.imagesResolved}`);
+      setTimeout(() => setExportStatus(''), 3000);
+      setPendingImageResolve(null);
+    };
+
+    input.click();
+  }, [pendingImageResolve, files, images, t.importing, t.imagesResolved]);
+
   // Handle dropped files globally (from drag & drop anywhere in the app)
   const handleGlobalDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
-    
-    const droppedFiles = Array.from(e.dataTransfer?.files || []);
+
+    // Recursively collect dropped files. If the user drops a folder (e.g. the
+    // `<page>_files/` companion folder generated by "Save Page As"), traverse
+    // it so relative <img src="…_files/…"> references can be resolved.
+    const { files: droppedFiles, byPath: droppedByPath } = await collectDroppedEntries(
+      e.dataTransfer?.items ?? null,
+      e.dataTransfer?.files ?? null
+    );
     if (droppedFiles.length === 0) return;
-    
+
     // Check if any .mdebook file is dropped - if so, open it (replace project)
     const projectFile = droppedFiles.find(f => f.name.endsWith('.mdebook'));
     if (projectFile) {
@@ -1106,24 +1406,47 @@ export const App: React.FC = () => {
       return;
     }
     
-    // Filter for markdown/text files only
-    const markdownFiles = droppedFiles.filter(f => 
+    // Filter for markdown/text/html files only
+    const importableFiles = droppedFiles.filter(f =>
       f.name.endsWith('.md') ||
       f.name.endsWith('.markdown') ||
-      f.name.endsWith('.txt')
+      f.name.endsWith('.txt') ||
+      isHtmlFileName(f.name)
     );
-    
-    if (markdownFiles.length === 0) return;
-    
-    // Import markdown files
+
+    if (importableFiles.length === 0) return;
+
+    // Import files (HTML is auto-converted to Markdown, remote images downloaded)
     const importedFiles: EditorFile[] = [];
-    
-    for (const file of markdownFiles) {
-      const content = await readFileWithEncoding(file);
+    const downloadedImages: ProjectImage[] = [];
+
+    let totalFailed = 0;
+    for (const file of importableFiles) {
+      const { name, content, wasHtml } = await readTextFileAsMarkdown(file);
+      let finalContent = content;
+      if (wasHtml) {
+        const taken = new Set<string>([
+          ...images.map(img => img.name),
+          ...downloadedImages.map(img => img.name),
+        ]);
+        const result = await downloadInlineImages(content, {
+          existingImageNames: taken,
+          localFiles: droppedByPath,
+          onProgress: (d, total) => {
+            if (total > 0) setExportStatus(`${t.importing} ${d}/${total}`);
+          },
+        });
+        finalContent = result.markdown;
+        for (const img of result.images) downloadedImages.push(img);
+        totalFailed += result.failed.length;
+        if (result.failed.length > 0) {
+          console.warn(`[mdebook] ${result.failed.length} image(s) could not be loaded for "${name}":`, result.failed);
+        }
+      }
       const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-      importedFiles.push({ id: newId, name: file.name, content });
+      importedFiles.push({ id: newId, name, content: finalContent });
     }
-    
+
     if (importedFiles.length > 0) {
       // Insert after currently active file
       setFiles(prev => {
@@ -1134,11 +1457,21 @@ export const App: React.FC = () => {
         return newFiles;
       });
       setActiveFileId(importedFiles[0].id);
-      setExportStatus(`${importedFiles.length} ${t.filesImported}`);
-      setTimeout(() => setExportStatus(''), 2000);
+      if (downloadedImages.length > 0) {
+        setImages(prev => [...prev, ...downloadedImages]);
+      }
+      const baseMsg = `${importedFiles.length} ${t.filesImported}`;
+      setExportStatus(totalFailed > 0 ? `${baseMsg} (${totalFailed} ${t.imagesUnresolved})` : baseMsg);
+      setTimeout(() => setExportStatus(''), totalFailed > 0 ? 5000 : 2000);
+      if (totalFailed > 0) {
+        setPendingImageResolve({
+          fileIds: importedFiles.map(f => f.id),
+          missingCount: totalFailed,
+        });
+      }
       focusEditor();
     }
-  }, [t.filesImported, t.projectLoaded, focusEditor, applyProjectData, activeFileId]);
+  }, [t.filesImported, t.imagesUnresolved, t.importing, t.projectLoaded, focusEditor, applyProjectData, activeFileId, images]);
   
   // Handle drag over globally
   const handleGlobalDragOver = useCallback((e: React.DragEvent) => {
@@ -1170,29 +1503,32 @@ export const App: React.FC = () => {
       // Try direct fetch first, then fallback to CORS proxies
       let response: Response | null = null;
       let content = '';
-      
+      let contentType: string | null = null;
+
       // Direct fetch (works for GitHub raw, etc.)
       try {
         response = await fetch(processedUrl);
         if (response.ok) {
+          contentType = response.headers.get('content-type');
           content = await readResponseWithEncoding(response);
         }
       } catch {
         // Direct fetch failed, try proxies
       }
-      
+
       // If direct fetch failed, try CORS proxies
       if (!content) {
         const corsProxies = [
           (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
           (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         ];
-        
+
         for (const getProxyUrl of corsProxies) {
           try {
             const proxyUrl = getProxyUrl(processedUrl);
             response = await fetch(proxyUrl);
             if (response.ok) {
+              contentType = response.headers.get('content-type');
               content = await readResponseWithEncoding(response);
               break;
             }
@@ -1201,16 +1537,46 @@ export const App: React.FC = () => {
           }
         }
       }
-      
+
       if (!content) {
         throw new Error('Failed to fetch URL (all proxies failed)');
       }
-      
-      const fileName = processedUrl.split('/').pop() || 'imported.md';
-      
+
+      // Resolve a base file name from the URL path
+      const urlPath = (() => {
+        try { return new URL(processedUrl).pathname; } catch { return processedUrl; }
+      })();
+      const lastSegment = urlPath.split('/').filter(Boolean).pop() || 'imported';
+      let fileName = lastSegment.includes('.') ? lastSegment : `${lastSegment}.md`;
+
+      // If the body looks like HTML (and we aren't pulling a .md file), convert to Markdown.
+      const isMdUrl = /\.md(\?|#|$)/i.test(processedUrl);
+      let downloadedImages: ProjectImage[] = [];
+      if (!isMdUrl && looksLikeHtml(content, contentType)) {
+        const { markdown, title } = htmlToMarkdown(content);
+        // Fetch any remote images and rewrite the markdown to point at images/<name>.
+        const taken = new Set(images.map(img => img.name));
+        const result = await downloadInlineImages(markdown, {
+          baseUrl: processedUrl,
+          existingImageNames: taken,
+          onProgress: (d, total) => {
+            if (total > 0) setExportStatus(`${t.importing} ${d}/${total}`);
+          },
+        });
+        content = result.markdown;
+        downloadedImages = result.images;
+        // Prefer the page title for the filename, fall back to URL segment.
+        const safeTitle = title.replace(/[\\/:*?"<>|\r\n\t]+/g, '').trim();
+        const base = safeTitle || lastSegment.replace(/\.[a-z0-9]+$/i, '') || 'imported';
+        fileName = `${base}.md`;
+      } else if (!/\.md$/i.test(fileName)) {
+        // Treat as Markdown but normalize extension
+        fileName = `${fileName.replace(/\.[a-z0-9]+$/i, '')}.md`;
+      }
+
       const newId = Date.now().toString();
       const newFile: EditorFile = { id: newId, name: fileName, content };
-      
+
       // Insert after currently active file
       setFiles(prev => {
         const activeIndex = prev.findIndex(f => f.id === activeFileId);
@@ -1219,6 +1585,9 @@ export const App: React.FC = () => {
         newFiles.splice(insertIndex, 0, newFile);
         return newFiles;
       });
+      if (downloadedImages.length > 0) {
+        setImages(prev => [...prev, ...downloadedImages]);
+      }
       setActiveFileId(newId);
       
       setShowImportModal(false);
@@ -1231,8 +1600,61 @@ export const App: React.FC = () => {
     } finally {
       setImportLoading(false);
     }
-  }, [importUrl, t.importComplete, t.importError, activeFileId]);
-  
+  }, [importUrl, t.importComplete, t.importError, activeFileId, images]);
+
+  // Convert pasted HTML into Markdown and add as a new file. Remote images
+  // referenced in the HTML are downloaded just like the URL-import path. Any
+  // relative URLs that the pasted snippet refers to will be reported as
+  // unresolved (the "select images folder" banner will appear).
+  const handleImportFromPastedHtml = useCallback(async () => {
+    const text = importHtmlText.trim();
+    if (!text) return;
+
+    setImportLoading(true);
+    try {
+      const { markdown, title } = htmlToMarkdown(text);
+      const taken = new Set(images.map(img => img.name));
+      const result = await downloadInlineImages(markdown, {
+        existingImageNames: taken,
+        onProgress: (d, total) => {
+          if (total > 0) setExportStatus(`${t.importing} ${d}/${total}`);
+        },
+      });
+
+      const safeTitle = title.replace(/[\\/:*?"<>|\r\n\t]+/g, '').trim();
+      const fileName = `${safeTitle || 'pasted'}.md`;
+
+      const newId = Date.now().toString();
+      const newFile: EditorFile = { id: newId, name: fileName, content: result.markdown };
+
+      setFiles(prev => {
+        const activeIndex = prev.findIndex(f => f.id === activeFileId);
+        const insertIndex = activeIndex >= 0 ? activeIndex + 1 : prev.length;
+        const newFiles = [...prev];
+        newFiles.splice(insertIndex, 0, newFile);
+        return newFiles;
+      });
+      if (result.images.length > 0) {
+        setImages(prev => [...prev, ...result.images]);
+      }
+      setActiveFileId(newId);
+
+      setShowImportModal(false);
+      setImportHtmlText('');
+      setExportStatus(t.importComplete);
+      setTimeout(() => setExportStatus(''), 2000);
+
+      if (result.failed.length > 0) {
+        setPendingImageResolve({ fileIds: [newId], missingCount: result.failed.length });
+      }
+    } catch (error) {
+      setExportStatus(`${t.importError}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTimeout(() => setExportStatus(''), 3000);
+    } finally {
+      setImportLoading(false);
+    }
+  }, [importHtmlText, images, activeFileId, t.importing, t.importComplete, t.importError]);
+
   // Add image to project (returns image reference for insertion)
   const handleImageAdd = useCallback(async (file: File, isPasted: boolean = false): Promise<string | null> => {
     try {
@@ -1360,29 +1782,32 @@ export const App: React.FC = () => {
   
   // Export handler
   const handleExport = useCallback(async (format: ExportFormat) => {
+    // Force exported documents to use the UI language shown in the header
+    // (top-left selector), not whatever stale value the book metadata carries.
+    const exportMetadata = { ...metadata, language: uiLang };
     try {
       switch (format) {
         case 'epub':
-          await generateEpub(files, metadata, images, setExportStatus);
+          await generateEpub(files, exportMetadata, images, setExportStatus);
           break;
         case 'pdf':
           // Get theme CSS for PDF styling
           const pdfThemeCss = metadata.themeId === 'custom' && metadata.customCss
             ? metadata.customCss
             : getThemeCss((metadata.themeId || DEFAULT_THEME_ID) as ThemeId);
-          await generatePdf(files, metadata, isDark, setExportStatus, pdfThemeCss);
+          await generatePdf(files, exportMetadata, isDark, setExportStatus, pdfThemeCss);
           break;
         case 'html':
-          await exportHtml(files, metadata, isDark, setExportStatus);
+          await exportHtml(files, exportMetadata, isDark, setExportStatus);
           break;
         case 'markdown':
-          await exportMarkdownZip(files, metadata, images, setExportStatus);
+          await exportMarkdownZip(files, exportMetadata, images, setExportStatus);
           break;
         case 'mdvim':
           // Export current file as mdvim
           if (activeFile) {
             setExportStatus(t.generating);
-            const blob = await exportToMdvim(activeFile, metadata, images);
+            const blob = await exportToMdvim(activeFile, exportMetadata, images);
             const filename = `${activeFile.name || 'document'}.mdvim`;
             saveFileFallback(blob, filename);
             setExportStatus(t.generationComplete);
@@ -1393,7 +1818,7 @@ export const App: React.FC = () => {
       setExportStatus(`${t.error}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     setTimeout(() => setExportStatus(''), 3000);
-  }, [files, metadata, isDark, images, activeFile, t.error, t.generating, t.generationComplete]);
+  }, [files, metadata, uiLang, isDark, images, activeFile, t.error, t.generating, t.generationComplete]);
   
   // PDF Font handlers
   const handlePdfFontUpload = useCallback(async (fontType: 'regular' | 'bold', file: File) => {
@@ -1491,6 +1916,15 @@ export const App: React.FC = () => {
             {t.vim}
           </button>
           
+          {/* New Project */}
+          <button
+            onClick={() => { handleNewProject(); }}
+            className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+            title={t.newProject}
+          >
+            <Icons.Book size={16} />
+          </button>
+
           {/* Open */}
           <button
             onClick={() => { handleOpen(); focusEditor(); }}
@@ -1816,8 +2250,9 @@ export const App: React.FC = () => {
       {/* Main content */}
       <main className="flex-1 flex overflow-hidden">
         {/* Vertical file tabs on the left */}
-        <div 
-          className={`w-48 flex-shrink-0 flex flex-col border-r ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}
+        <div
+          className={`flex-shrink-0 flex flex-col border-r ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}
+          style={{ width: sidebarWidth }}
           onKeyDown={(e) => {
             // When : is pressed on tab list, focus editor and enter command mode
             if (e.key === ':' && vimEnabled && editingFileId === null) {
@@ -1974,7 +2409,17 @@ export const App: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
+        {/* Resize handle between sidebar and editor */}
+        <div
+          onMouseDown={handleSidebarResizeStart}
+          onDoubleClick={handleSidebarResizeDoubleClick}
+          title="Drag to resize · Double-click to reset"
+          className={`flex-shrink-0 w-1 cursor-col-resize select-none transition-colors ${
+            isDark ? 'bg-gray-700 hover:bg-blue-500' : 'bg-gray-200 hover:bg-blue-400'
+          }`}
+        />
+
         {/* Editor */}
         <div className={`flex-1 min-w-0 h-full border-r ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           {activeFile && (
@@ -2013,7 +2458,30 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
-      
+
+      {/* Pending image-resolve banner (HTML import had unresolved relative paths) */}
+      {pendingImageResolve && (
+        <div className={`flex items-center justify-between px-4 py-2 text-sm border-t ${isDark ? 'bg-yellow-900/40 border-yellow-700 text-yellow-100' : 'bg-yellow-50 border-yellow-200 text-yellow-900'}`}>
+          <span>
+            {pendingImageResolve.missingCount} {t.resolveImagesPrompt}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResolveMissingImages}
+              className="px-3 py-1 rounded bg-yellow-600 text-white hover:bg-yellow-700 text-xs"
+            >
+              {t.resolveImagesButton}
+            </button>
+            <button
+              onClick={() => setPendingImageResolve(null)}
+              className={`px-3 py-1 rounded text-xs ${isDark ? 'hover:bg-yellow-800' : 'hover:bg-yellow-100'}`}
+            >
+              {t.dismiss}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className={`flex items-center justify-between px-4 py-1 text-xs border-t ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
         <div className="flex items-center gap-4">
@@ -2036,8 +2504,8 @@ export const App: React.FC = () => {
               <button
                 onClick={() => { handleImportFromFiles(); }}
                 className={`w-full px-4 py-3 rounded border-2 border-dashed flex items-center justify-center gap-2 ${
-                  isDark 
-                    ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' 
+                  isDark
+                    ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
                     : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                 }`}
               >
@@ -2046,6 +2514,20 @@ export const App: React.FC = () => {
               </button>
               <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 {t.supportedFormats}
+              </p>
+              <button
+                onClick={() => { handleImportFromFiles(true); }}
+                className={`w-full mt-2 px-4 py-2 rounded border flex items-center justify-center gap-2 text-sm ${
+                  isDark
+                    ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+              >
+                <Icons.Folder size={16} />
+                <span>{t.selectFolder}</span>
+              </button>
+              <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                {t.folderHint}
               </p>
             </div>
             
@@ -2076,14 +2558,43 @@ export const App: React.FC = () => {
                   <li>{t.qiitaArticle}</li>
                   <li>{t.githubAuto}</li>
                   <li>{t.directMd}</li>
+                  <li>{t.htmlPage}</li>
                 </ul>
               </div>
             </div>
-            
+
+            {/* Divider */}
+            <div className={`flex items-center gap-3 mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              <div className={`flex-1 h-px ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} />
+              <span className="text-sm">{t.or}</span>
+              <div className={`flex-1 h-px ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} />
+            </div>
+
+            {/* HTML paste */}
+            <div className="mb-4">
+              <textarea
+                value={importHtmlText}
+                onChange={(e) => setImportHtmlText(e.target.value)}
+                placeholder={t.pasteHtmlPlaceholder}
+                rows={5}
+                className={`w-full px-3 py-2 rounded font-mono text-xs ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} border`}
+              />
+              <button
+                onClick={() => handleImportFromPastedHtml()}
+                disabled={importLoading || !importHtmlText.trim()}
+                className="mt-2 w-full px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 text-sm"
+              >
+                {importLoading ? t.importing : t.convertHtmlButton}
+              </button>
+              <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                {t.pasteHtmlHint}
+              </p>
+            </div>
+
             {/* Buttons */}
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => { setShowImportModal(false); setImportUrl(''); focusEditor(); }}
+                onClick={() => { setShowImportModal(false); setImportUrl(''); setImportHtmlText(''); focusEditor(); }}
                 className={`px-4 py-2 rounded ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
               >
                 {t.cancel}
